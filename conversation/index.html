@@ -188,16 +188,23 @@ const renderMsg = m => {
 
 /********************* IFRAME LOGIC *******************/
 const updateIframe = () => {
-  if(fbPostUrl){
-    iframeHeader.style.display="block";
-    iframeHeader.innerHTML=`<a href="${fbPostUrl}" target="_blank" rel="noopener noreferrer">${fbPostUrl}</a>`;
-    dynamicFrame.src=fbPostUrl;
-  }else if(contactEmail&&CONFIG.IFRAME_URL_TEMPLATE){
-    iframeHeader.style.display="none";
-    iframeHeader.textContent="";
-    dynamicFrame.src=CONFIG.IFRAME_URL_TEMPLATE.replace("{{EMAIL}}",encodeURIComponent(contactEmail));
+  if (fbPostUrl) {
+    iframeHeader.style.display = "block";
+    iframeHeader.innerHTML = `<a href="${fbPostUrl}" target="_blank" rel="noopener noreferrer">${fbPostUrl}</a>`;
+    dynamicFrame.src = fbPostUrl;
+  } else if (contactEmail && CONFIG.IFRAME_URL_TEMPLATE) {
+    iframeHeader.style.display = "none";
+    iframeHeader.textContent = "";
+    dynamicFrame.src = CONFIG.IFRAME_URL_TEMPLATE
+                         .replace("{{EMAIL}}", encodeURIComponent(contactEmail));
+  } else {
+    // Fallback, wenn weder fb_post_url noch E-Mail vorhanden
+    iframeHeader.style.display = "none";
+    iframeHeader.textContent = "";
+    dynamicFrame.src = "about:blank";
   }
 };
+
 
 /******************** CHATWOOT HOOK *******************/
 window.addEventListener("message",e=>{
@@ -294,6 +301,7 @@ document.addEventListener("keydown", e => {
 
 /******************* INITIALISIERUNG ******************/
 updateUI();
+updateIframe(); 
 
 // Fallback: wenn nach 10 s keine Daten eintreffen
 setTimeout(() => {
