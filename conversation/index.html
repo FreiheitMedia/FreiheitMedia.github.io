@@ -334,7 +334,7 @@ async function sendMessageWithRetry(html, retries = 0) {
       headers: buildHeaders(),
       body: JSON.stringify({
         content: html,
-        message_type: 1,
+        message_type: "outgoing,
         content_type: "text",
         private: false
       })
@@ -395,7 +395,7 @@ document.getElementById("composer").addEventListener("submit", async (e) => {
     id: Date.now(),
     content: sanitizedHtml,
     created_at: Date.now(),
-    message_type: 1
+    message_type: "outgoing"
   };
   const optimisticEl = renderMsg(optimisticMsg);
   
