@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chatwoot Conversation Dashboard App – Dark Theme</title>
+
+  <!-- -----------------------------------------------------------------
+       Chatwoot‑ähnliches Dark Theme – komplett
+  ------------------------------------------------------------------ -->
+  <style>
+    :root {
+      --cw-primary: #3b82f6;
+      --cw-primary-hover: #2563eb;
+      --cw-success: #22c55e;
+      --cw-danger:  #ef4444;
+      --cw-bg:      #1e1f24;  /* App-Hintergrund */
+      --cw-surface: #2b2d32;  /* Panels */
+      --cw-border:  #40424a;
+      --cw-text:    #f3f4f6;
+      --cw-muted:   #9ca3af;
+      --cw-bubble-in: #36383d;
+      --cw-bubble-in-border: #50525a;
+      --cw-radius: 0.5rem;
+      --cw-gap:    1rem;
+      --cw-font: -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{height:100%;font-family:var(--cw-font);background:var(--cw-bg);color:var(--cw-text)}
+
+    /* ---------- Layout ---------- */
+    .layout{display:flex;flex-direction:column;height:100%;gap:var(--cw-gap);padding:var(--cw-gap)}
+    .iframe-wrapper,.conversation-wrapper{background:var(--cw-surface);border:1px solid var(--cw-border);border-radius:var(--cw-radius)}
+    .iframe-wrapper{flex:1 1 50%;overflow:hidden}
+    .iframe-wrapper iframe{width:100%;height:100%;border:none}
+    .conversation-wrapper{flex:1 1 50%;display:flex;flex-direction:column}
+
+    /* ---------- Messages ---------- */
+    #messages{flex:1 1 auto;list-style:none;overflow-y:auto;padding:var(--cw-gap);display:flex;flex-direction:column;gap:.75rem}
+    .msg{position:relative;max-width:75%;padding:.5rem .75rem;border-radius:1.25rem;font-size:.875rem;line-height:1.45;word-break:break-word}
+    .incoming{align-self:flex-start;background:var(--cw-bubble-in);border:1px solid var(--cw-bubble-in-border)}
+    .incoming::before{content:"";position:absolute;left:-7px;top:12px;border:6px solid transparent;border-right-color:var(--cw-bubble-in-border)}
+    .incoming::after{content:"";position:absolute;left:-6px;top:12px;border:6px solid transparent;border-right-color:var(--cw-bubble-in)}
+    .outgoing{align-self:flex-end;background:var(--cw-primary);color:#fff}
+    .outgoing::before{content:"";position:absolute;right:-7px;top:12px;border:6px solid transparent;border-left-color:var(--cw-primary)}
+    .timestamp{display:block;margin-top:.25rem;font-size:.75rem;color:var(--cw-muted)}
+
+    /* ---------- Composer ---------- */
+    #composer{border-top:1px solid var(--cw-border);padding:.5rem var(--cw-gap);display:flex;flex-direction:column;gap:.5rem}
+    #toolbar{display:flex;gap:.25rem;align-items:center}
+    #toolbar button{all:unset;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:var(--cw-radius)}
+    #toolbar button:hover{background:var(--cw-border)}
+    #templateSelect{flex:0 0 200px;padding:.375rem .5rem;border:1px solid var(--cw-border);border-radius:var(--cw-radius);background:var(--cw-surface);color:var(--cw-text);font-size:.875rem}
+    #sendBtn{background:var(--cw-primary);color:#fff;padding:.5rem 1rem;border-radius:var(--cw-radius);font-size:.875rem;border:none;cursor:pointer}
+    #sendBtn:hover{background:var(--cw-primary-hover)}
+    #editor{min-height:80px;max-height:200px;overflow-y:auto;padding:.5rem .75rem;border:1px solid var(--cw-border);border-radius:var(--cw-radius);font-size:.875rem;background:var(--cw-bg)}
+    #editor:empty:before{content:attr(placeholder);color:var(--cw-muted)}
+
+    /* ---------- Emoji Picker ---------- */
+    .emoji-picker{position:absolute;bottom:60px;right:1rem;background:var(--cw-surface);border:1px solid var(--cw-border);border-radius:var(--cw-radius);box-shadow:0 4px 16px rgba(0,0,0,.5);padding:.5rem;display:none;grid-template-columns:repeat(7,26px);gap:6px;z-index:100}
+    .emoji-picker span{cursor:pointer;font-size:20px;text-align:center;line-height:24px}
+    .emoji-picker span:hover{transform:scale(1.25)}
+
+    /* ---------- Toast ---------- */
+    #toastRoot{position:fixed;right:1rem;bottom:1rem;display:flex;flex-direction:column;gap:.5rem;z-index:9999}
+    .toast{padding:.5rem .75rem;border-radius:var(--cw-radius);font-size:.875rem;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+    .toast.info{background:var(--cw-primary)}
+    .toast.error{background:var(--cw-danger)}
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <section class="iframe-wrapper"><iframe id="dynamicFrame" src="about:blank" title="Dynamic Content"></iframe></section>
+
+    <section class="conversation-wrapper">
+      <ul id="messages"></ul>
+
+      <form id="composer">
+        <div id="toolbar">
+          <button type="button" data-cmd="bold" title="Fett (Strg+B)"><strong>B</strong></button>
+          <button type="button" data-cmd="italic" title="Kursiv (Strg+I)"><em>I</em></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Liste">• • •</button>
+          <select id="templateSelect"><option value="">‒ Vorlage wählen ‒</option></select>
+          <button id="emojiBtn" type="button" title="Emoji">😊</button>
+          <button id="sendBtn" type="submit">Senden</button>
+        </div>
+        <div id="editor" contenteditable="true" placeholder="Nachricht eingeben …"></div>
+      </form>
+    </section>
+  </div>
+
+  <!-- Emoji Picker -->
+  <div id="emojiPicker" class="emoji-picker"></div>
+
+  <!-- Toasts -->
+  <div id="toastRoot"></div>
+
+  <script>
+    /* ===================== CONFIG ===================== */
+    const CONFIG={
+      CHATWOOT_ORIGIN:"", // optional Origin-Check
+      N8N_SEND_WEBHOOK:"https://your-n8n-instance/webhook/send-message",
+      N8N_TEMPLATES_ENDPOINT:"https://your-n8n-instance/webhook/templates",
+      IFRAME_URL_TEMPLATE:"https://example.com/contact/{{EMAIL}}",
+      REFRESH_INTERVAL:4000
+    };
+
+    /* ===================== DOM ===================== */
+    const messagesEl=document.getElementById('messages');
+    const dynamicFrame=document.getElementById('dynamicFrame');
+    const editor=document.getElementById('editor');
+    const toolbar=document.getElementById('toolbar');
+    const templateSelect=document.getElementById('templateSelect');
+    const emojiBtn=document.getElementById('emojiBtn');
+    const emojiPicker=document.getElementById('emojiPicker');
+    const toastRoot=document.getElementById('toastRoot');
+
+    /* ===================== STATE ===================== */
+    let conversationId=null, contactId=null, contactEmail=null; const renderedIds=new Set();
+    let intervalId=null; let pickerVisible=false;
+
+    /* ===================== HELPERS ===================== */
+    const b64Encode=s=>btoa(unescape(encodeURIComponent(s)));
+    const b64Decode=s=>decodeURIComponent(escape(atob(s)));
+    function toast(msg,type='info',dur=3000){const n=document.createElement('div');n.className=`toast ${type}`;n.textContent=msg;toastRoot.appendChild(n);setTimeout(()=>n.remove(),dur);}  
+
+    /* ===== Message Rendering ===== */
+    function renderMsg(m){
+      if(renderedIds.has(m.id))return; renderedIds.add(m.id);
+      const li=document.createElement('li'); li.className=`msg ${m.message_type==='incoming'?'incoming':'outgoing'}`;
+      li.innerHTML=`${m.content}<span class="timestamp">${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>`;
+      messagesEl.appendChild(li); messagesEl.scrollTop=messagesEl.scrollHeight;
+    }
+
+    function updateIframe(){ if(contactEmail){ dynamicFrame.src=CONFIG.IFRAME_URL_TEMPLATE.replace('{{EMAIL}}',encodeURIComponent(contactEmail)); } }
+
+    const requestRefresh=()=>window.parent.postMessage('chatwoot-dashboard-app:fetch-info','*');
+
+    /* ===================== CHATWOOT LISTENER ===================== */
+    window.addEventListener('message',e=>{
+      if(CONFIG.CHATWOOT_ORIGIN && e.origin!==CONFIG.CHATWOOT_ORIGIN) return;
+      if(typeof e.data!=='string') return;
+      try{
+        const p=JSON.parse(e.data);
+        if(p.event!=='appContext') return;
+        const {conversation,contact}=p.data;
+        conversationId=conversation.id;
+        contactId=contact.id;
+        contactEmail=contact.email||null;
+        updateIframe();
+        if(Array.isArray(conversation.messages)){
+          conversation.messages.sort((a,b)=>a.id-b.id).forEach(renderMsg);
+        }
+        if(!templateSelect.dataset.loaded) loadTemplates();
+        if(!intervalId) intervalId=setInterval(requestRefresh,CONFIG.REFRESH_INTERVAL);
+      }catch{/* ignore */}
+    });
+
+    /* ===================== TOOLBAR ===================== */
+    toolbar.addEventListener('click',e=>{
+      const btn=e.target.closest('button'); if(!btn) return;
+      const cmd=btn.dataset.cmd; if(cmd){ document.execCommand(cmd,false,null); editor.focus(); }
+    });
+
+    /* ===================== EMOJI PICKER ===================== */
+    const EMOJIS=['😀','😁','😂','😅','😊','😍','😘','😜','🤔','🤗','🤩','👍','🙏','🔥','🎉','🚀','💡','✅','❌','❤️'];
+    emojiPicker.innerHTML=EMOJIS.map(e=>`<span>${e}</span>`).join('');
+
+    emojiBtn.addEventListener('click',e=>{
+      pickerVisible=!pickerVisible;
+      emojiPicker.style.display=pickerVisible?'grid':'none';
+      e.stopPropagation();
+    });
+
+    emojiPicker.addEventListener('click',e=>{
+      if(e.target.tagName==='SPAN'){
+        const emoji=e.target.textContent;
+        if(document.queryCommandSupported('insertText')){
+          document.execCommand('insertText',false,emoji);
+        }else{
+          document.execCommand('insertHTML',false,emoji);
+        }
+        pickerVisible=false; emojiPicker.style.display='none'; editor.focus();
+      }
+    });
+
+    document.addEventListener('click',e=>{ if(pickerVisible && !emojiPicker.contains(e.target) && e.target!==emojiBtn){ pickerVisible=false; emojiPicker.style.display='none'; } });
+
+    /* ===================== TEMPLATES ===================== */
+function loadTemplates(){
+  let url = CONFIG.N8N_TEMPLATES_ENDPOINT;
+  if(contactId) url += `?contact_id=${contactId}`;
+  fetch(url)
+    .then(r=>r.json())
+    .then(arr=>{
+      if(!Array.isArray(arr)) return;
+      templateSelect.innerHTML = '<option value="">‒ Vorlage wählen ‒</option>' +
+        arr.map(t=>`<option value="${b64Encode(t.content)}">${t.title || t.name || 'Vorlage'}</option>`).join('');
+      templateSelect.dataset.loaded = 'true';
+    })
+    .catch(err=>console.error('Template fetch error', err));
+}
+
+templateSelect.addEventListener('change',e=>{
+  if(e.target.value){
+    editor.innerHTML = b64Decode(e.target.value);
+    editor.focus();
+  }
+});
+
+/* ===================== SEND MESSAGE ===================== */
+function sendMessage(html){
+  const payload={conversation_id:conversationId,contact_id:contactId,html,timestamp:Date.now()};
+  return fetch(CONFIG.N8N_SEND_WEBHOOK,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+}
+
+/* ==================== COMPOSER SUBMIT ==================== */
+const composer=document.getElementById('composer');
+composer.addEventListener('submit',e=>{
+  e.preventDefault();
+  const html=editor.innerHTML.trim();
+  if(!html) return;
+  // Optimistisches Rendering
+  renderMsg({id:Date.now(),content:html,created_at:Date.now(),message_type:'outgoing'});
+  editor.innerHTML='';
+  templateSelect.value='';
+  sendMessage(html)
+    .then(()=>toast('Nachricht gesendet','info'))
+    .catch(err=>{console.error(err);toast('Senden fehlgeschlagen','error');});
+});
+
+/* ===================== SHORTCUTS ===================== */
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey && e.key.toLowerCase()==='r'){
+    requestRefresh();
+    e.preventDefault();
+  }
+});
+
+  </script>
+</body>
+</html>
