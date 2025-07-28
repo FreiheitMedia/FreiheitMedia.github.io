@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chatwoot Conversation Dashboard App</title>
+
+  <!-- ============================================================
+       Chatwoot‑ähnliche Design‑Tokens (Light Theme)
+       ============================================================ -->
+  <style>
+    :root {
+      /* Farbpalette */
+      --cw-primary: #3b82f6;
+      --cw-primary-hover: #2563eb;
+      --cw-success: #22c55e;
+      --cw-danger: #ef4444;
+      --cw-bg: #f9fafb;
+      --cw-surface: #ffffff;
+      --cw-border: #e5e7eb;
+      --cw-text: #374151;
+      --cw-muted: #6b7280;
+      /* Typografie & Layout */
+      --cw-font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      --cw-radius: 0.5rem;
+      --cw-gap: 1rem;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html,body { height: 100%; font-family: var(--cw-font); background: var(--cw-bg); color: var(--cw-text); }
+
+    /* -------------------------------------------------- Layout */
+    .layout { display: flex; flex-direction: column; gap: var(--cw-gap); padding: var(--cw-gap); height: 100%; }
+    .iframe-wrapper, .conversation-wrapper { border: 1px solid var(--cw-border); border-radius: var(--cw-radius); background: var(--cw-surface); position: relative; }
+    .iframe-wrapper { flex: 1 1 50%; overflow: hidden; }
+    .iframe-wrapper iframe { width: 100%; height: 100%; border: none; }
+    .conversation-wrapper { flex: 1 1 50%; display: flex; flex-direction: column; }
+
+    /* -------------------------------------------------- Messages */
+    #messages { flex: 1 1 auto; list-style: none; overflow-y: auto; padding: var(--cw-gap); display: flex; flex-direction: column; gap: 0.75rem; }
+    .msg { max-width: 75%; padding: 0.5rem 0.75rem; border-radius: calc(var(--cw-radius) * 2); font-size: 0.875rem; line-height: 1.45; word-break: break-word; }
+    .incoming { align-self: flex-start; background: var(--cw-bg); border: 1px solid var(--cw-border); }
+    .outgoing { align-self: flex-end; background: var(--cw-primary); color: #fff; }
+    .timestamp { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: var(--cw-muted); }
+
+    /* -------------------------------------------------- Composer */
+    #composer { border-top: 1px solid var(--cw-border); padding: 0.75rem var(--cw-gap); display: flex; flex-direction: column; gap: 0.5rem; }
+    #composer-controls { display: flex; gap: 0.5rem; }
+    #templateSelect { flex: 0 0 240px; padding: 0.5rem 0.75rem; border: 1px solid var(--cw-border); border-radius: var(--cw-radius); font-size: 0.875rem; }
+    #messageInput { flex: 1 1 auto; padding: 0.5rem 0.75rem; border: 1px solid var(--cw-border); border-radius: var(--cw-radius); font-size: 0.875rem; width: 100%; }
+    #sendBtn { all: unset; cursor: pointer; background: var(--cw-primary); color: #fff; padding: 0.5rem 1rem; border-radius: var(--cw-radius); font-size: 0.875rem; transition: background 120ms; }
+    #sendBtn:hover { background: var(--cw-primary-hover); }
+
+    /* -------------------------------------------------- Toast */
+    #toastRoot { position: fixed; right: 1rem; bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 9999; }
+    .toast { background: var(--cw-primary); color: #fff; padding: 0.5rem 0.75rem; border-radius: var(--cw-radius); box-shadow: 0 2px 10px rgba(0,0,0,.15); font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- -------- Dynamischer IFrame (obere Hälfte) -------- -->
+    <section class="iframe-wrapper">
+      <iframe id="dynamicFrame" src="about:blank" title="Dynamic Content"></iframe>
+    </section>
+
+    <!-- -------- Conversation-Bereich (untere Hälfte) -------- -->
+    <section class="conversation-wrapper">
+      <ul id="messages"></ul>
+
+      <form id="composer">
+        <div id="composer-controls">
+          <select id="templateSelect"><option value="">‒ Vorlage wählen ‒</option></select>
+          <button id="sendBtn" type="submit">Senden</button>
+        </div>
+        <input id="messageInput" type="text" placeholder="Nachricht eingeben …" autocomplete="off" />
+      </form>
+    </section>
+  </div>
+
+  <!-- -------- Toast Root -------- -->
+  <div id="toastRoot"></div>
+
+  <script>
+    /* =============================================================
+       1. KONFIGURATION – bitte anpassen
+       ============================================================= */
+    const CONFIG = {
+      CHATWOOT_ORIGIN: "", // z. B. "https://app.example.com" – leer = keine Prüfung
+      N8N_SEND_WEBHOOK: "https://your-n8n-instance/webhook/send-message",
+      N8N_TEMPLATES_ENDPOINT: "https://your-n8n-instance/webhook/templates", // GET (optional ?contact_id=…)
+      IFRAME_URL_TEMPLATE: "https://example.com/contact/{{EMAIL}}",
+      REFRESH_INTERVAL: 4000 // ms – wie oft Chatwoot-Info neu anfragen
+    };
+
+    /* =============================================================
+       2. DOM-REFERENZEN
+       ============================================================= */
+    const composer        = document.getElementById('composer');
+    const messagesEl      = document.getElementById('messages');
+    const messageInput    = document.getElementById('messageInput');
+    const templateSelect  = document.getElementById('templateSelect');
+    const dynamicFrame    = document.getElementById('dynamicFrame');
+    const toastRoot       = document.getElementById('toastRoot');
+
+    /* =============================================================
+       3. STATE
+       ============================================================= */
+    let conversationId = null;
+    let contactId      = null;
+    let contactEmail   = null;
+    const renderedIds  = new Set();
+    let refreshTimer   = null;
+
+    /* =============================================================
+       4. HILFSFUNKTIONEN
+       ============================================================= */
+    const b64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
+    const b64Decode = (str) => decodeURIComponent(escape(atob(str)));
+
+    function toast(msg, ms = 3000) {
+      const div = document.createElement('div');
+      div.className = 'toast';
+      div.textContent = msg;
+      toastRoot.appendChild(div);
+      setTimeout(() => div.remove(), ms);
+    }
+
+    function renderMessage(m) {
+      if (renderedIds.has(m.id)) return;
+      renderedIds.add(m.id);
+
+      const li = document.createElement('li');
+      li.className = `msg ${m.message_type === 'incoming' ? 'incoming' : 'outgoing'}`;
+      li.innerHTML = `${m.content}<span class="timestamp">${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+      messagesEl.appendChild(li);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function updateIframe() {
+      if (!contactEmail) return;
+      dynamicFrame.src = CONFIG.IFRAME_URL_TEMPLATE.replace('{{EMAIL}}', encodeURIComponent(contactEmail));
+    }
+
+    function requestRefresh() {
+      window.parent.postMessage('chatwoot-dashboard-app:fetch-info', '*');
+    }
+
+    /* =============================================================
+       5. CHATWOOT → APP : MESSAGE EVENT
+       ============================================================= */
+    window.addEventListener('message', (event) => {
+      if (CONFIG.CHATWOOT_ORIGIN && event.origin !== CONFIG.CHATWOOT_ORIGIN) return;
+      if (typeof event.data !== 'string') return;
+
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.event !== 'appContext') return;
+
+        const { conversation, contact } = payload.data;
+        if (!(conversation && contact)) return;
+
+        conversationId = conversation.id;
+        contactId      = contact.id;
+        contactEmail   = contact.email || null;
+        updateIframe();
+
+        // Nachrichten rendern (Sortierung sicherstellen)
+        if (Array.isArray(conversation.messages)) {
+          conversation.messages.sort((a,b) => a.id - b.id).forEach(renderMessage);
+        }
+
+        // Vorlagen lazy laden
+        if (!templateSelect.dataset.loaded) loadTemplates();
+
+        // Start / Reset Auto‑Refresh
+        if (refreshTimer === null) {
+          refreshTimer = setInterval(requestRefresh, CONFIG.REFRESH_INTERVAL);
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    });
+
+    /* =============================================================
+       6. VORLAGEN VON n8n HOLEN
+       ============================================================= */
+    function loadTemplates() {
+      let url = CONFIG.N8N_TEMPLATES_ENDPOINT;
+      if (contactId) url += `?contact_id=${contactId}`;
+
+      fetch(url)
+        .then(r => r.json())
+        .then(arr => {
+          if (!Array.isArray(arr)) return;
+          templateSelect.innerHTML = '<option value="">‒ Vorlage wählen ‒</option>' + arr.map(t => {
+            const encoded = b64Encode(t.content);
+            return `<option value="${encoded}">${t.title || t.name || 'Vorlage'}</option>`;
+          }).join('');
+          templateSelect.dataset.loaded = 'true';
+        })
+        .catch(err => console.error('Vorlagen‑Fetch', err));
+    }
+
+    templateSelect.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val) {
+        messageInput.value = b64Decode(val);
+        messageInput.focus();
+      }
+    });
+
+    /* =============================================================
+       7. NACHRICHT AN n8n SENDEN
+       ============================================================= */
+    function sendMessageViaN8N(text) {
+      const body = { conversation_id: conversationId, contact_id: contactId, text, ts: Date.now() };
+      return fetch(CONFIG.N8N_SEND_WEBHOOK, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+    }
+
+    /* =============================================================
+       8. COMPOSER SUBMIT
+       ============================================================= */
+    composer.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      // Optimistisches Einfügen
+      renderMessage({ id: Date.now(), content: text, created_at: Date.now(), message_type: 'outgoing' });
+      messageInput.value = '';
+      templateSelect.value = '';
+
+      sendMessageViaN8N(text)
+        .then(() => toast('Nachricht versendet'))
+        .catch(err => { console.error(err); toast('Senden fehlgeschlagen', 4000); });
+    });
+
+    /* =============================================================
+       9. MANUELL AKTUALISIEREN (STRG+R)
+       ============================================================= */
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'r') {
+        requestRefresh();
+        e.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>
