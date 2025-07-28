@@ -334,7 +334,7 @@ async function sendMessageWithRetry(html, retries = 0) {
       headers: buildHeaders(),
       body: JSON.stringify({
         content: html,
-        message_type: "outgoing,
+        message_type: "outgoing",
         content_type: "text",
         private: false
       })
