@@ -217,13 +217,14 @@ window.addEventListener("message",e=>{
       console.warn("Unvollständige appContext-Daten erhalten");
       return;
     }
-    console.log("message received:");
-    console.log(JSON.stringify(p, null, 2));
+
     accountId      = conversation.account_id;
     conversationId = conversation.id;
     inboxId        = conversation.inbox_id;
     contactId      = contact.id;
-    contactIdentifier = contact.identifier || contact.id;
+    
+    // Für API-Channels: source_id aus contact_inbox verwenden!
+    contactIdentifier = conversation.contact_inbox?.source_id || contact.identifier || contact.id;
     contactEmail   = contact.email || null;
 
     console.log("Konversationsdaten geladen:", {
