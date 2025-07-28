@@ -314,7 +314,11 @@ function buildHeaders(){
 }
 
 function buildEndpoint(){
-  return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
+  if(CONFIG.USE_SAME_ORIGIN){
+    return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
+  }else{
+    return `${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${contactIdentifier}/conversations/${conversationId}/messages`;
+  }
 }
 
 async function sendMessageWithRetry(html, retries = 0) {
