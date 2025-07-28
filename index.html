@@ -2,16 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chatwoot Conversation Dashboard App</title>
-
-  <!-- ============================================================
+  <title>Chatwoot Conversation Dashboard App – Rich Composer</title>
+  <!-- ------------------------------------------------------------
        Chatwoot‑ähnliche Design‑Tokens (Light Theme)
-       ============================================================ -->
+  ------------------------------------------------------------- -->
   <style>
     :root {
-      /* Farbpalette */
       --cw-primary: #3b82f6;
       --cw-primary-hover: #2563eb;
       --cw-success: #22c55e;
@@ -21,7 +18,6 @@
       --cw-border: #e5e7eb;
       --cw-text: #374151;
       --cw-muted: #6b7280;
-      /* Typografie & Layout */
       --cw-font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
       --cw-radius: 0.5rem;
       --cw-gap: 1rem;
@@ -30,223 +26,200 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html,body { height: 100%; font-family: var(--cw-font); background: var(--cw-bg); color: var(--cw-text); }
 
-    /* -------------------------------------------------- Layout */
+    /* ---------------- Layout ---------------- */
     .layout { display: flex; flex-direction: column; gap: var(--cw-gap); padding: var(--cw-gap); height: 100%; }
-    .iframe-wrapper, .conversation-wrapper { border: 1px solid var(--cw-border); border-radius: var(--cw-radius); background: var(--cw-surface); position: relative; }
+    .iframe-wrapper, .conversation-wrapper { border: 1px solid var(--cw-border); border-radius: var(--cw-radius); background: var(--cw-surface); }
     .iframe-wrapper { flex: 1 1 50%; overflow: hidden; }
     .iframe-wrapper iframe { width: 100%; height: 100%; border: none; }
+
     .conversation-wrapper { flex: 1 1 50%; display: flex; flex-direction: column; }
 
-    /* -------------------------------------------------- Messages */
+    /* ---------------- Messages ---------------- */
     #messages { flex: 1 1 auto; list-style: none; overflow-y: auto; padding: var(--cw-gap); display: flex; flex-direction: column; gap: 0.75rem; }
-    .msg { max-width: 75%; padding: 0.5rem 0.75rem; border-radius: calc(var(--cw-radius) * 2); font-size: 0.875rem; line-height: 1.45; word-break: break-word; }
+    .msg { position: relative; max-width: 75%; padding: 0.5rem 0.75rem; border-radius: 1.25rem; font-size: 0.875rem; line-height: 1.45; word-break: break-word; }
+
     .incoming { align-self: flex-start; background: var(--cw-bg); border: 1px solid var(--cw-border); }
+    .incoming::before { /* border edge */
+      content: ""; position: absolute; left: -7px; top: 12px;
+      border-width: 6px 6px 6px 0; border-style: solid;
+      border-color: transparent var(--cw-border) transparent transparent;
+    }
+    .incoming::after { /* inner bubble */
+      content: ""; position: absolute; left: -6px; top: 12px;
+      border-width: 6px 6px 6px 0; border-style: solid;
+      border-color: transparent var(--cw-bg) transparent transparent;
+    }
+
     .outgoing { align-self: flex-end; background: var(--cw-primary); color: #fff; }
+    .outgoing::before {
+      content: ""; position: absolute; right: -7px; top: 12px;
+      border-width: 6px 0 6px 6px; border-style: solid;
+      border-color: transparent transparent transparent var(--cw-primary);
+    }
+
     .timestamp { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: var(--cw-muted); }
 
-    /* -------------------------------------------------- Composer */
-    #composer { border-top: 1px solid var(--cw-border); padding: 0.75rem var(--cw-gap); display: flex; flex-direction: column; gap: 0.5rem; }
-    #composer-controls { display: flex; gap: 0.5rem; }
-    #templateSelect { flex: 0 0 240px; padding: 0.5rem 0.75rem; border: 1px solid var(--cw-border); border-radius: var(--cw-radius); font-size: 0.875rem; }
-    #messageInput { flex: 1 1 auto; padding: 0.5rem 0.75rem; border: 1px solid var(--cw-border); border-radius: var(--cw-radius); font-size: 0.875rem; width: 100%; }
-    #sendBtn { all: unset; cursor: pointer; background: var(--cw-primary); color: #fff; padding: 0.5rem 1rem; border-radius: var(--cw-radius); font-size: 0.875rem; transition: background 120ms; }
+    /* ---------------- Composer ---------------- */
+    #composer { border-top: 1px solid var(--cw-border); padding: 0.5rem var(--cw-gap); display: flex; flex-direction: column; gap: 0.5rem; }
+
+    /* Toolbar */
+    #toolbar { display: flex; gap: 0.25rem; align-items: center; }
+    #toolbar button { all: unset; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: var(--cw-radius); }
+    #toolbar button:hover { background: var(--cw-bg); }
+
+    #templateSelect { flex: 0 0 200px; padding: 0.375rem 0.5rem; border: 1px solid var(--cw-border); border-radius: var(--cw-radius); font-size: 0.875rem; }
+    #sendBtn { background: var(--cw-primary); color: #fff; padding: 0.5rem 1rem; border-radius: var(--cw-radius); font-size: 0.875rem; border: none; cursor: pointer; }
     #sendBtn:hover { background: var(--cw-primary-hover); }
 
-    /* -------------------------------------------------- Toast */
+    /* Editor */
+    #editor { min-height: 80px; max-height: 180px; overflow-y: auto; padding: 0.5rem 0.75rem; border: 1px solid var(--cw-border); border-radius: var(--cw-radius); font-size: 0.875rem; }
+    #editor:empty:before { content: attr(placeholder); color: var(--cw-muted); }
+
+    /* Emoji picker */
+    .emoji-picker { position: absolute; bottom: 48px; right: 1rem; background: var(--cw-surface); border: 1px solid var(--cw-border); border-radius: var(--cw-radius); box-shadow: 0 2px 12px rgba(0,0,0,.1); padding: 0.5rem; display: grid; grid-template-columns: repeat(6, 24px); gap: 4px; }
+    .emoji-picker span { cursor: pointer; font-size: 20px; }
+    .emoji-picker span:hover { transform: scale(1.2); }
+
+    /* Toast */
     #toastRoot { position: fixed; right: 1rem; bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 9999; }
     .toast { background: var(--cw-primary); color: #fff; padding: 0.5rem 0.75rem; border-radius: var(--cw-radius); box-shadow: 0 2px 10px rgba(0,0,0,.15); font-size: 0.875rem; }
   </style>
 </head>
 <body>
   <div class="layout">
-    <!-- -------- Dynamischer IFrame (obere Hälfte) -------- -->
-    <section class="iframe-wrapper">
-      <iframe id="dynamicFrame" src="about:blank" title="Dynamic Content"></iframe>
-    </section>
 
-    <!-- -------- Conversation-Bereich (untere Hälfte) -------- -->
+    <!-- ============ DYNAMIC IFRAME (TOP) ============ -->
+    <section class="iframe-wrapper"><iframe id="dynamicFrame" src="about:blank"></iframe></section>
+
+    <!-- ============ CONVERSATION AREA (BOTTOM) ============ -->
     <section class="conversation-wrapper">
       <ul id="messages"></ul>
 
       <form id="composer">
-        <div id="composer-controls">
+        <div id="toolbar">
+          <button type="button" data-cmd="bold" title="Fett (Strg+B)"><strong>B</strong></button>
+          <button type="button" data-cmd="italic" title="Kursiv (Strg+I)"><em>I</em></button>
+          <button type="button" data-cmd="insertUnorderedList" title="Liste">• • •</button>
           <select id="templateSelect"><option value="">‒ Vorlage wählen ‒</option></select>
+          <button id="emojiBtn" type="button" title="Emoji">😊</button>
           <button id="sendBtn" type="submit">Senden</button>
         </div>
-        <input id="messageInput" type="text" placeholder="Nachricht eingeben …" autocomplete="off" />
+        <div id="editor" contenteditable="true" placeholder="Nachricht eingeben …"></div>
       </form>
     </section>
   </div>
 
-  <!-- -------- Toast Root -------- -->
+  <!-- Emoji-Picker (initial hidden) -->
+  <div id="emojiPicker" class="emoji-picker" hidden></div>
+
+  <!-- Toast Root -->
   <div id="toastRoot"></div>
 
   <script>
-    /* =============================================================
-       1. KONFIGURATION – bitte anpassen
-       ============================================================= */
+    /* ============================ CONFIG ============================ */
     const CONFIG = {
-      CHATWOOT_ORIGIN: "", // z. B. "https://app.example.com" – leer = keine Prüfung
+      CHATWOOT_ORIGIN: "", // wenn leer -> keine Origin-Validierung
       N8N_SEND_WEBHOOK: "https://your-n8n-instance/webhook/send-message",
-      N8N_TEMPLATES_ENDPOINT: "https://your-n8n-instance/webhook/templates", // GET (optional ?contact_id=…)
+      N8N_TEMPLATES_ENDPOINT: "https://your-n8n-instance/webhook/templates",
       IFRAME_URL_TEMPLATE: "https://example.com/contact/{{EMAIL}}",
-      REFRESH_INTERVAL: 4000 // ms – wie oft Chatwoot-Info neu anfragen
+      REFRESH_INTERVAL: 4000 // ms
     };
 
-    /* =============================================================
-       2. DOM-REFERENZEN
-       ============================================================= */
-    const composer        = document.getElementById('composer');
-    const messagesEl      = document.getElementById('messages');
-    const messageInput    = document.getElementById('messageInput');
-    const templateSelect  = document.getElementById('templateSelect');
-    const dynamicFrame    = document.getElementById('dynamicFrame');
-    const toastRoot       = document.getElementById('toastRoot');
+    /* ============================ DOM REFS ============================ */
+    const messagesEl     = document.getElementById('messages');
+    const dynamicFrame   = document.getElementById('dynamicFrame');
+    const editor         = document.getElementById('editor');
+    const composer       = document.getElementById('composer');
+    const toolbar        = document.getElementById('toolbar');
+    const templateSelect = document.getElementById('templateSelect');
+    const emojiBtn       = document.getElementById('emojiBtn');
+    const emojiPicker    = document.getElementById('emojiPicker');
+    const toastRoot      = document.getElementById('toastRoot');
 
-    /* =============================================================
-       3. STATE
-       ============================================================= */
+    /* ============================ STATE ============================ */
     let conversationId = null;
     let contactId      = null;
     let contactEmail   = null;
     const renderedIds  = new Set();
-    let refreshTimer   = null;
+    let intervalId     = null;
 
-    /* =============================================================
-       4. HILFSFUNKTIONEN
-       ============================================================= */
-    const b64Encode = (str) => btoa(unescape(encodeURIComponent(str)));
-    const b64Decode = (str) => decodeURIComponent(escape(atob(str)));
+    /* ========================== HELPERS =========================== */
+    const b64Encode = str => btoa(unescape(encodeURIComponent(str)));
+    const b64Decode = str => decodeURIComponent(escape(atob(str)));
 
-    function toast(msg, ms = 3000) {
-      const div = document.createElement('div');
-      div.className = 'toast';
-      div.textContent = msg;
-      toastRoot.appendChild(div);
-      setTimeout(() => div.remove(), ms);
+    function toast(msg, dur=3000){
+      const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+      toastRoot.appendChild(t); setTimeout(()=>t.remove(),dur);
     }
 
-    function renderMessage(m) {
-      if (renderedIds.has(m.id)) return;
-      renderedIds.add(m.id);
-
-      const li = document.createElement('li');
-      li.className = `msg ${m.message_type === 'incoming' ? 'incoming' : 'outgoing'}`;
-      li.innerHTML = `${m.content}<span class="timestamp">${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
-      messagesEl.appendChild(li);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+    function renderMessage(m){
+      if(renderedIds.has(m.id)) return; renderedIds.add(m.id);
+      const li=document.createElement('li');
+      li.className=`msg ${m.message_type==='incoming'?'incoming':'outgoing'}`;
+      li.innerHTML=`${m.content}<span class="timestamp">${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>`;
+      messagesEl.appendChild(li); messagesEl.scrollTop=messagesEl.scrollHeight;
     }
 
-    function updateIframe() {
-      if (!contactEmail) return;
-      dynamicFrame.src = CONFIG.IFRAME_URL_TEMPLATE.replace('{{EMAIL}}', encodeURIComponent(contactEmail));
-    }
+    function updateIframe(){ if(contactEmail){ dynamicFrame.src=CONFIG.IFRAME_URL_TEMPLATE.replace('{{EMAIL}}',encodeURIComponent(contactEmail)); } }
 
-    function requestRefresh() {
-      window.parent.postMessage('chatwoot-dashboard-app:fetch-info', '*');
-    }
+    function requestRefresh(){ window.parent.postMessage('chatwoot-dashboard-app:fetch-info','*'); }
 
-    /* =============================================================
-       5. CHATWOOT → APP : MESSAGE EVENT
-       ============================================================= */
-    window.addEventListener('message', (event) => {
-      if (CONFIG.CHATWOOT_ORIGIN && event.origin !== CONFIG.CHATWOOT_ORIGIN) return;
-      if (typeof event.data !== 'string') return;
-
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.event !== 'appContext') return;
-
-        const { conversation, contact } = payload.data;
-        if (!(conversation && contact)) return;
-
-        conversationId = conversation.id;
-        contactId      = contact.id;
-        contactEmail   = contact.email || null;
+    /* ====================== CHATWOOT EVENT LISTENER ===================== */
+    window.addEventListener('message',e=>{
+      if(CONFIG.CHATWOOT_ORIGIN && e.origin!==CONFIG.CHATWOOT_ORIGIN) return;
+      if(typeof e.data!== 'string') return;
+      try{
+        const payload=JSON.parse(e.data);
+        if(payload.event!== 'appContext') return;
+        const {conversation,contact}=payload.data;
+        conversationId=conversation.id; contactId=contact.id; contactEmail=contact.email||null;
         updateIframe();
-
-        // Nachrichten rendern (Sortierung sicherstellen)
-        if (Array.isArray(conversation.messages)) {
-          conversation.messages.sort((a,b) => a.id - b.id).forEach(renderMessage);
+        if(Array.isArray(conversation.messages)){
+          conversation.messages.sort((a,b)=>a.id-b.id).forEach(renderMessage);
         }
-
-        // Vorlagen lazy laden
-        if (!templateSelect.dataset.loaded) loadTemplates();
-
-        // Start / Reset Auto‑Refresh
-        if (refreshTimer === null) {
-          refreshTimer = setInterval(requestRefresh, CONFIG.REFRESH_INTERVAL);
-        }
-      } catch (_) {
-        /* ignore */
-      }
+        if(!templateSelect.dataset.loaded) loadTemplates();
+        if(!intervalId){ intervalId=setInterval(requestRefresh,CONFIG.REFRESH_INTERVAL); }
+      }catch(_){/* ignore */}
     });
 
-    /* =============================================================
-       6. VORLAGEN VON n8n HOLEN
-       ============================================================= */
-    function loadTemplates() {
-      let url = CONFIG.N8N_TEMPLATES_ENDPOINT;
-      if (contactId) url += `?contact_id=${contactId}`;
+    /* ======================= TOOLBAR COMMANDS ======================= */
+    toolbar.addEventListener('click',e=>{
+      const btn=e.target.closest('button'); if(!btn) return;
+      const cmd=btn.dataset.cmd; if(cmd){ document.execCommand(cmd,false,null); editor.focus(); }
+    });
 
-      fetch(url)
-        .then(r => r.json())
-        .then(arr => {
-          if (!Array.isArray(arr)) return;
-          templateSelect.innerHTML = '<option value="">‒ Vorlage wählen ‒</option>' + arr.map(t => {
-            const encoded = b64Encode(t.content);
-            return `<option value="${encoded}">${t.title || t.name || 'Vorlage'}</option>`;
-          }).join('');
-          templateSelect.dataset.loaded = 'true';
-        })
-        .catch(err => console.error('Vorlagen‑Fetch', err));
+    /* =========================== EMOJI ============================= */
+    const EMOJIS=['😀','😃','😄','😁','😆','😅','😂','🙂','🙃','😉','😊','😍','😘','😜','🤔','🤗','🤩','👍','👎','🙏','🔥','🎉','🚀','💡','✅','❌'];
+    emojiPicker.innerHTML=EMOJIS.map(e=>`<span>${e}</span>`).join('');
+    emojiPicker.addEventListener('click',e=>{ if(e.target.tagName==='SPAN'){ document.execCommand('insertText',false,e.target.textContent); emojiPicker.hidden=true; editor.focus(); } });
+    emojiBtn.addEventListener('click',()=>{ emojiPicker.hidden=!emojiPicker.hidden; });
+
+    /* ========================= TEMPLATES ========================== */
+    function loadTemplates(){
+      let url=CONFIG.N8N_TEMPLATES_ENDPOINT; if(contactId) url+=`?contact_id=${contactId}`;
+      fetch(url).then(r=>r.json()).then(arr=>{
+        if(!Array.isArray(arr)) return;
+        templateSelect.innerHTML='<option value="">‒ Vorlage wählen ‒</option>'+arr.map(t=>`<option value="${b64Encode(t.content)}">${t.title||t.name||'Vorlage'}</option>`).join('');
+        templateSelect.dataset.loaded='true';
+      }).catch(console.error);
+    }
+    templateSelect.addEventListener('change',e=>{ if(e.target.value){ editor.innerHTML=b64Decode(e.target.value); editor.focus(); } });
+
+    /* ======================= SEND MESSAGE ========================= */
+    function sendMessage(textHTML){
+      const body={conversation_id:conversationId,contact_id:contactId,html:textHTML,ts:Date.now()};
+      return fetch(CONFIG.N8N_SEND_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     }
 
-    templateSelect.addEventListener('change', (e) => {
-      const val = e.target.value;
-      if (val) {
-        messageInput.value = b64Decode(val);
-        messageInput.focus();
-      }
+    composer.addEventListener('submit',e=>{
+      e.preventDefault(); const html=editor.innerHTML.trim(); if(!html) return;
+      renderMessage({id:Date.now(),content:html,created_at:Date.now(),message_type:'outgoing'});
+      editor.innerHTML=''; templateSelect.value='';
+      sendMessage(html).then(()=>toast('Nachricht gesendet')).catch(err=>{console.error(err);toast('Fehler beim Senden',4000);});
     });
 
-    /* =============================================================
-       7. NACHRICHT AN n8n SENDEN
-       ============================================================= */
-    function sendMessageViaN8N(text) {
-      const body = { conversation_id: conversationId, contact_id: contactId, text, ts: Date.now() };
-      return fetch(CONFIG.N8N_SEND_WEBHOOK, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-      });
-    }
-
-    /* =============================================================
-       8. COMPOSER SUBMIT
-       ============================================================= */
-    composer.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = messageInput.value.trim();
-      if (!text) return;
-
-      // Optimistisches Einfügen
-      renderMessage({ id: Date.now(), content: text, created_at: Date.now(), message_type: 'outgoing' });
-      messageInput.value = '';
-      templateSelect.value = '';
-
-      sendMessageViaN8N(text)
-        .then(() => toast('Nachricht versendet'))
-        .catch(err => { console.error(err); toast('Senden fehlgeschlagen', 4000); });
-    });
-
-    /* =============================================================
-       9. MANUELL AKTUALISIEREN (STRG+R)
-       ============================================================= */
-    document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key.toLowerCase() === 'r') {
-        requestRefresh();
-        e.preventDefault();
-      }
-    });
+    /* =================== KEYBOARD SHORTCUTS ====================== */
+    document.addEventListener('keydown',e=>{ if(e.ctrlKey&&e.key.toLowerCase()==='r'){ requestRefresh(); e.preventDefault(); } });
   </script>
 </body>
 </html>
