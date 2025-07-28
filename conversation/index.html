@@ -152,7 +152,10 @@ function updateUI() {
 }
 
 function canSendMessage() {
-  return accountId && conversationId;
+  if (CONFIG.USE_SAME_ORIGIN) {
+    return accountId && conversationId;
+  }
+  return contactIdentifier && conversationId && CONFIG.API_INBOX_IDENTIFIER;
 }
 
 function sanitizeHTML(html) {
@@ -317,8 +320,8 @@ function buildEndpoint(){
   if(CONFIG.USE_SAME_ORIGIN){
     return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
   }else{
-    return `${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${contactIdentifier}/conversations/${conversationId}/messages`;
-  }
+    return `${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${encodeURIComponent(contactIdentifier)}/conversations/${conversationId}/messages`;
+  } 
 }
 
 async function sendMessageWithRetry(html, retries = 0) {
@@ -331,7 +334,7 @@ async function sendMessageWithRetry(html, retries = 0) {
       headers: buildHeaders(),
       body: JSON.stringify({
         content: html,
-        message_type: "outgoing",
+        message_type: 1,
         content_type: "text",
         private: false
       })
@@ -392,7 +395,7 @@ document.getElementById("composer").addEventListener("submit", async (e) => {
     id: Date.now(),
     content: sanitizedHtml,
     created_at: Date.now(),
-    message_type: "outgoing"
+    message_type: 1
   };
   const optimisticEl = renderMsg(optimisticMsg);
   
