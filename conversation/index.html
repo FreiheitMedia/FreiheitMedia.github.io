@@ -152,11 +152,7 @@ function updateUI() {
 }
 
 function canSendMessage() {
-  if (CONFIG.USE_SAME_ORIGIN) {
-    return accountId && conversationId;
-  } else {
-    return contactIdentifier && conversationId && CONFIG.API_INBOX_IDENTIFIER;
-  }
+  return accountId && conversationId;
 }
 
 function sanitizeHTML(html) {
@@ -178,18 +174,21 @@ function sanitizeHTML(html) {
 
 /* ===== Message Rendering ===== */
 function renderMsg(m){
-  if(renderedIds.has(m.id)) return; 
+  if(renderedIds.has(m.id)) return null;
   renderedIds.add(m.id);
-  
+
   const li=document.createElement('li');
-  li.className=`msg ${m.message_type==='incoming'?'incoming':'outgoing'}`;
-  
+  const isIncoming = m.message_type===0 || m.message_type==='incoming';
+  li.className=`msg ${isIncoming?'incoming':'outgoing'}`;
+  li.dataset.msgId=m.id;
+
   const content = m.content || '';
   const timestamp = new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  
+
   li.innerHTML=`${content}<span class="timestamp">${timestamp}</span>`;
-  messagesEl.appendChild(li); 
+  messagesEl.appendChild(li);
   messagesEl.scrollTop=messagesEl.scrollHeight;
+  return li;
 }
 
 /* ===== IFrame Helper ===== */
@@ -315,11 +314,7 @@ function buildHeaders(){
 }
 
 function buildEndpoint(){
-  if(CONFIG.USE_SAME_ORIGIN){
-    return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
-  }else{
-    return `${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${contactIdentifier}/conversations/${conversationId}/messages`;
-  }
+  return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
 }
 
 async function sendMessageWithRetry(html, retries = 0) {
@@ -395,14 +390,19 @@ document.getElementById("composer").addEventListener("submit", async (e) => {
     created_at: Date.now(),
     message_type: "outgoing"
   };
-  renderMsg(optimisticMsg);
+  const optimisticEl = renderMsg(optimisticMsg);
   
   // Form zurücksetzen
   editor.innerHTML = "";
   templateSelect.value = "";
 
   try {
-    await sendMessageWithRetry(sanitizedHtml);
+    const result = await sendMessageWithRetry(sanitizedHtml);
+    if(optimisticEl){
+      optimisticEl.remove();
+    }
+    renderedIds.delete(optimisticMsg.id);
+    renderMsg(result);
     toast("Nachricht erfolgreich gesendet", "success");
   } catch (error) {
     console.error("Endgültiger Fehler beim Senden:", error);
@@ -410,7 +410,7 @@ document.getElementById("composer").addEventListener("submit", async (e) => {
     
     // Optimistische Nachricht entfernen (in einer echten App würde man sie als "failed" markieren)
     renderedIds.delete(optimisticMsg.id);
-    // Die Nachricht aus dem DOM zu entfernen wäre komplexer, daher belassen wir es dabei
+    if(optimisticEl){ optimisticEl.remove(); }
   } finally {
     isLoading = false;
     updateUI();
