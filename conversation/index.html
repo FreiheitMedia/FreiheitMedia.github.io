@@ -151,7 +151,7 @@
         if(Array.isArray(conversation.messages)){
           conversation.messages.sort((a,b)=>a.id-b.id).forEach(renderMsg);
         }
-        if(!templateSelect.dataset.loaded) loadTemplates();
+      // if(!templateSelect.dataset.loaded) loadTemplates();
         if(!intervalId) intervalId=setInterval(requestRefresh,CONFIG.REFRESH_INTERVAL);
       }catch{/* ignore */}
     });
