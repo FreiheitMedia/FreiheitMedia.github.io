@@ -321,7 +321,7 @@ function buildEndpoint(){
     return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
   }else{
     return `${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${encodeURIComponent(contactIdentifier)}/conversations/${conversationId}/messages`;
-  } 
+ } 
 }
 
 async function sendMessageWithRetry(html, retries = 0) {
