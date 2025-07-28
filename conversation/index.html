@@ -226,6 +226,10 @@ window.addEventListener("message",e=>{
     // Für API-Channels: source_id aus contact_inbox verwenden!
     contactIdentifier = conversation.contact_inbox?.source_id || contact.identifier || contact.id;
     contactEmail   = contact.email || null;
+    
+    console.log("DEBUG - conversation.contact_inbox:", conversation.contact_inbox);
+    console.log("DEBUG - source_id:", conversation.contact_inbox?.source_id);
+    console.log("DEBUG - contact.identifier:", contact.identifier);
 
     console.log("Konversationsdaten geladen:", {
       accountId, conversationId, inboxId, contactId, contactIdentifier, contactEmail
