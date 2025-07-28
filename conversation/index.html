@@ -218,18 +218,23 @@ window.addEventListener("message",e=>{
       return;
     }
 
+    console.log("DEBUG - Vollständige conversation:", conversation);
+    console.log("DEBUG - conversation.contact_inbox:", conversation.contact_inbox);
+    console.log("DEBUG - Vollständiger contact:", contact);
+    
     accountId      = conversation.account_id;
     conversationId = conversation.id;
     inboxId        = conversation.inbox_id;
     contactId      = contact.id;
     
-    // Für API-Channels: source_id aus contact_inbox verwenden!
-    contactIdentifier = conversation.contact_inbox?.source_id || contact.identifier || contact.id;
+    // Mehrere Versuche, die source_id zu finden
+    contactIdentifier = conversation.contact_inbox?.source_id || 
+                       contact.contact_inboxes?.find(ci => ci.inbox.id === inboxId)?.source_id ||
+                       contact.identifier || 
+                       contact.id;
     contactEmail   = contact.email || null;
     
-    console.log("DEBUG - conversation.contact_inbox:", conversation.contact_inbox);
-    console.log("DEBUG - source_id:", conversation.contact_inbox?.source_id);
-    console.log("DEBUG - contact.identifier:", contact.identifier);
+    console.log("DEBUG - Gefundener contactIdentifier:", contactIdentifier);
 
     console.log("Konversationsdaten geladen:", {
       accountId, conversationId, inboxId, contactId, contactIdentifier, contactEmail
