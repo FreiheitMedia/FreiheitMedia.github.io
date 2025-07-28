@@ -91,7 +91,7 @@ const CONFIG = {
   // -------- API-Channel-Variante (Token steckt im Browser) --------
   API_INBOX_IDENTIFIER: "4pVTQyz8bqH9vMcmKzhqo54L",
   API_INBOX_TOKEN:      "4pVTQyz8bqH9vMcmKzhqo54L",
-
+  N8N_WEBHOOK_URL:      "https://backend.myshopagent.ai/webhook/test_outgoing",
   // -------- Umschalt-Flag --------
   // true  => gleiche Domain, Auth via Session-Cookie, Token wird NICHT gesendet
   // false => Fremddomain, Auth via API-Channel-Token (oben)
@@ -308,21 +308,25 @@ function loadTemplates(){
 }
 
 /* ===================== SEND MESSAGE ===================== */
-function buildHeaders(){
+/*function buildHeaders(){
   const headers = {"Content-Type":"application/json"};
   if(!CONFIG.USE_SAME_ORIGIN){
     headers["api_access_token"] = CONFIG.API_INBOX_TOKEN;
   }
   return headers;
-}
+}*/
+  
+const buildHeaders = () => ({"Content-Type":"application/json"});
 
-function buildEndpoint(){
+/*function buildEndpoint(){
   if(CONFIG.USE_SAME_ORIGIN){
     return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
   }else{
     return `${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${encodeURIComponent(contactIdentifier)}/conversations/${conversationId}/messages`;
  } 
-}
+}*/
+
+const buildEndpoint = () => CONFIG.N8N_WEBHOOK_URL;
 
 async function sendMessageWithRetry(html, retries = 0) {
   try {
@@ -333,10 +337,11 @@ async function sendMessageWithRetry(html, retries = 0) {
       method: "POST",
       headers: buildHeaders(),
       body: JSON.stringify({
-        content: html,
+        msg_content: html,
         message_type: "outgoing",
-        content_type: "text",
-        private: false
+        conversation_id: conversationId,
+        contact_id:      contactId,
+        account_id: accountId,
       })
     });
 
