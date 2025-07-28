@@ -99,7 +99,9 @@
     /* ===================== CONFIG ===================== */
     const CONFIG={
       CHATWOOT_ORIGIN:"https://platform.myshopagent.ai/", // optional Origin-Check
-      N8N_SEND_WEBHOOK:"https://backend.myshopagent.ai/webhook/send_to_philTest",
+      CHATWOOT_API_BASE:"https://platform.myshopagent.ai/api/v1",
+      CHATWOOT_ACCOUNT_ID:"1",
+      CHATWOOT_TOKEN:"REPLACE_WITH_TOKEN",
       N8N_TEMPLATES_ENDPOINT:"https://your-n8n-instance/webhook/templates",
       IFRAME_URL_TEMPLATE:"https://example.com/contact/{{EMAIL}}",
       REFRESH_INTERVAL:4000
@@ -210,11 +212,19 @@ templateSelect.addEventListener('change',e=>{
 
 /* ===================== SEND MESSAGE ===================== */
 function sendMessage(html){
-  const payload={conversation_id:conversationId,contact_id:contactId,html,timestamp:Date.now()};
-  return fetch(CONFIG.N8N_SEND_WEBHOOK,{
+  if(!conversationId) return Promise.reject(new Error('Missing conversation id'));
+  const url=`${CONFIG.CHATWOOT_API_BASE}/accounts/${CONFIG.CHATWOOT_ACCOUNT_ID}/conversations/${conversationId}/messages`;
+  const options={
     method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(payload)
+    headers:{
+      'Content-Type':'application/json',
+      'api_access_token':CONFIG.CHATWOOT_TOKEN
+    },
+    body:JSON.stringify({content:html,message_type:'outgoing'})
+  };
+  return fetch(url,options).then(res=>{
+    if(!res.ok) throw new Error('Chatwoot request failed');
+    return res.json();
   });
 }
 
