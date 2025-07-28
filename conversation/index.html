@@ -217,7 +217,8 @@ window.addEventListener("message",e=>{
       console.warn("Unvollständige appContext-Daten erhalten");
       return;
     }
-
+    console.log("message received:");
+    console.log(JSON.stringify(p, null, 2));
     accountId      = conversation.account_id;
     conversationId = conversation.id;
     inboxId        = conversation.inbox_id;
