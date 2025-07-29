@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MyShopAgent Conversation (API-Channel)</title>
+  <title>MyShopAgent Conversation (API‑Channel – Debug)</title>
 
-  <!-- Dark-Theme-Variablen (unverändert) -->
+  <!-- Dark‑Theme‑Variablen (unverändert) -->
   <style>
     :root{
       --cw-primary:#3b82f6;--cw-primary-hover:#2563eb;--cw-success:#22c55e;
@@ -18,7 +18,7 @@
     html,body{height:100%;font-family:var(--cw-font);background:var(--cw-bg);color:var(--cw-text)}
     .layout{display:flex;flex-direction:column;height:100%;gap:var(--cw-gap);padding:var(--cw-gap)}
     .iframe-wrapper,.conversation-wrapper{background:var(--cw-surface);border:1px solid var(--cw-border);border-radius:var(--cw-radius)}
-    .iframe-wrapper{flex:1 1 50%;overflow:hidden}
+    .iframe-wrapper{flex:1 1 50%;overflow:hidden;position:relative}
     .iframe-wrapper iframe{width:100%;height:100%;border:none}
     .conversation-wrapper{flex:1 1 50%;display:flex;flex-direction:column}
     #messages{flex:1 1 auto;list-style:none;overflow-y:auto;padding:var(--cw-gap);display:flex;flex-direction:column;gap:.75rem}
@@ -85,40 +85,44 @@
 <script>
 /* ===================== CONFIG ===================== */
 const CONFIG = {
-  // Basis-URL deiner Chatwoot-Instanz (ohne Slash am Ende)
-  CHATWOOT_BASE:        "https://platform.myshopagent.ai/",
+  // Basis‑URL deiner Chatwoot‑Instanz (ohne Slash am Ende)
+  CHATWOOT_BASE:        "https://platform.myshopagent.ai",
 
-  // -------- API-Channel-Variante (Token steckt im Browser) --------
+  // -------- API‑Channel‑Variante (Token steckt im Browser) --------
   API_INBOX_IDENTIFIER: "13",
   API_INBOX_TOKEN:      "4pVTQyz8bqH9vMcmKzhqo54L",
 
-  // -------- Umschalt-Flag --------
-  // true  => gleiche Domain, Auth via Session-Cookie, Token wird NICHT gesendet
-  // false => Fremddomain, Auth via API-Channel-Token (oben)
+  // -------- Umschalt‑Flag --------
+  // true  => gleiche Domain, Auth via Session‑Cookie, Token wird NICHT gesendet
+  // false => Fremddomain, Auth via API‑Channel‑Token (oben)
   USE_SAME_ORIGIN:      false,
 
-  /* Weitere App-Settings */
+  /* Weitere App‑Settings */
   IFRAME_URL_TEMPLATE:  "https://example.com/contact/{{EMAIL}}",
   REFRESH_INTERVAL:     4000,
-  MAX_RETRIES:         3,
-  RETRY_DELAY:         1000
+  MAX_RETRIES:          3,
+  RETRY_DELAY:          1000,
+
+  /* Debug‑Flag: Schaltet zusätzliche Logs & Toasts ein */
+  DEBUG:                true
 };
 
 /* ===================== DOM ===================== */
-const messagesEl   = document.getElementById("messages");
-const dynamicFrame = document.getElementById("dynamicFrame");
-const editor       = document.getElementById("editor");
-const toolbar      = document.getElementById("toolbar");
-const templateSelect = document.getElementById("templateSelect");
-const emojiBtn     = document.getElementById("emojiBtn");
-const emojiPicker  = document.getElementById("emojiPicker");
-const toastRoot    = document.getElementById("toastRoot");
-const sendBtn      = document.getElementById("sendBtn");
-const statusIndicator = document.getElementById("statusIndicator");
+const messagesEl       = document.getElementById("messages");
+const dynamicFrame     = document.getElementById("dynamicFrame");
+const editor           = document.getElementById("editor");
+const toolbar          = document.getElementById("toolbar");
+const templateSelect   = document.getElementById("templateSelect");
+const emojiBtn         = document.getElementById("emojiBtn");
+const emojiPicker      = document.getElementById("emojiPicker");
+const toastRoot        = document.getElementById("toastRoot");
+const sendBtn          = document.getElementById("sendBtn");
+const statusIndicator  = document.getElementById("statusIndicator");
 
 /* ===================== STATE ===================== */
 let accountId=null, inboxId=null;
 let conversationId=null, contactId=null, contactIdentifier=null, contactEmail=null;
+let fbEmbedLink=null; // <-- NEW: ggf. URL des FB‑Posts
 const renderedIds=new Set();
 let intervalId=null, pickerVisible=false;
 let isLoading=false, isReady=false;
@@ -133,6 +137,14 @@ function toast(msg,type='info',dur=3000){
   n.textContent=msg; 
   toastRoot.appendChild(n);
   setTimeout(()=>n.remove(),dur);
+}
+
+// Zentrale Debug‑Ausgabe (Konsole + optional Toast)
+function debugLog(...args){
+  if(!CONFIG.DEBUG) return;
+  console.debug('[DEBUG]',...args);
+  const first = typeof args[0]==='string' ? args[0] : JSON.stringify(args[0]);
+  toast(first,'info',2000);
 }
 
 function updateUI() {
@@ -160,19 +172,10 @@ function canSendMessage() {
 }
 
 function sanitizeHTML(html) {
-  // Einfache HTML-Bereinigung - in Produktion sollte eine richtige Bibliothek verwendet werden
   const temp = document.createElement('div');
   temp.innerHTML = html;
-  
-  // Gefährliche Tags entfernen
   const dangerousTags = ['script', 'iframe', 'object', 'embed', 'form'];
-  dangerousTags.forEach(tag => {
-    const elements = temp.getElementsByTagName(tag);
-    for (let i = elements.length - 1; i >= 0; i--) {
-      elements[i].remove();
-    }
-  });
-  
+  dangerousTags.forEach(tag => [...temp.getElementsByTagName(tag)].forEach(el=>el.remove()));
   return temp.innerHTML;
 }
 
@@ -183,28 +186,37 @@ function renderMsg(m){
   
   const li=document.createElement('li');
   li.className=`msg ${m.message_type==='incoming'?'incoming':'outgoing'}`;
-  
   const content = m.content || '';
   const timestamp = new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  
   li.innerHTML=`${content}<span class="timestamp">${timestamp}</span>`;
   messagesEl.appendChild(li); 
   messagesEl.scrollTop=messagesEl.scrollHeight;
 }
 
 /* ===== IFrame Helper ===== */
+function buildFbEmbedUrl(permalink){
+  return `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(permalink)}&show_text=true&width=500`;
+}
+
 function updateIframe(){
-  if(contactEmail && CONFIG.IFRAME_URL_TEMPLATE){
-    try {
+  try{
+    if(fbEmbedLink){
+      dynamicFrame.src = buildFbEmbedUrl(fbEmbedLink);
+      debugLog('iframe setzt FB‑Embed‑URL', dynamicFrame.src);
+    }else if(contactEmail && CONFIG.IFRAME_URL_TEMPLATE){
       dynamicFrame.src = CONFIG.IFRAME_URL_TEMPLATE.replace("{{EMAIL}}",encodeURIComponent(contactEmail));
-    } catch (error) {
-      console.warn("Fehler beim Laden der iframe URL:", error);
+      debugLog('iframe setzt Kontakt‑URL', dynamicFrame.src);
     }
+  }catch(err){
+    console.warn('Fehler beim Laden der iframe URL:', err);
   }
 }
 
+dynamicFrame.addEventListener('load', ()=>debugLog('iframe geladen', dynamicFrame.src));
+
 /* ===================== CHATWOOT LISTENER ===================== */
 window.addEventListener("message", e => {
+  debugLog('postMessage empfangen', e.data);
   if (typeof e.data !== "string") return;
   try {
     const p = JSON.parse(e.data);
@@ -212,11 +224,11 @@ window.addEventListener("message", e => {
 
     const { conversation, contact } = p.data;
     if (!conversation || !contact) {
-      console.warn("Unvollständige appContext-Daten erhalten");
+      console.warn("Unvollständige appContext‑Daten erhalten");
       return;
     }
 
-    // Assign real data
+    // Grunddaten übernehmen
     accountId        = conversation.account_id;
     conversationId   = conversation.id;
     inboxId          = conversation.inbox_id;
@@ -224,7 +236,16 @@ window.addEventListener("message", e => {
     contactIdentifier= contact.identifier || contact.id;
     contactEmail     = contact.email || null;
 
-    // Initialize UI
+    // ==== Custom‑Attribute prüfen (neue FB‑Logik) ====
+    const custom = contact.custom_attributes || {};
+    fbEmbedLink = custom.fb_post_url || null;
+    if(!fbEmbedLink && (custom.fb_post_id || custom.story_fbid) && custom.fb_id){
+      const storyId = custom.fb_post_id || custom.story_fbid;
+      fbEmbedLink = `https://www.facebook.com/permalink.php?story_fbid=${storyId}&id=${custom.fb_id}`;
+    }
+    debugLog('fbEmbedLink ermittelt', fbEmbedLink);
+
+    // UI aktualisieren
     updateIframe();
     updateUI();
     conversation.messages.sort((a,b)=>a.id-b.id).forEach(renderMsg);
@@ -232,7 +253,7 @@ window.addEventListener("message", e => {
     if (!intervalId) {
       intervalId = setInterval(() => window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*"), CONFIG.REFRESH_INTERVAL);
     }
-    console.log("Chatwoot Daten geladen.");
+    debugLog('Chatwoot Daten verarbeitet');
   } catch (error) {
     console.error("Fehler beim Verarbeiten der Chatwoot-Nachricht:", error);
   }
@@ -242,7 +263,6 @@ window.addEventListener("message", e => {
 toolbar.addEventListener("click",e=>{
   const btn=e.target.closest("button"); 
   if(!btn || btn.disabled) return;
-  
   const cmd=btn.dataset.cmd; 
   if(cmd){ 
     document.execCommand(cmd,false,null); 
@@ -284,6 +304,7 @@ document.addEventListener("click",e=>{
 /* ===================== TEMPLATES ===================== */
 function loadTemplates(){ 
   templateSelect.dataset.loaded = "true";
+  debugLog('Templates geladen (Platzhalter)');
   // Hier könnten Templates von einem Endpoint geladen werden
 }
 
@@ -307,7 +328,7 @@ function buildEndpoint(){
 async function sendMessageWithRetry(html, retries = 0) {
   try {
     const endpoint = buildEndpoint();
-    console.log("Sende an Endpoint:", endpoint);
+    debugLog('Sende an Endpoint', endpoint);
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -326,12 +347,11 @@ async function sendMessageWithRetry(html, retries = 0) {
     }
 
     const result = await response.json();
-    console.log("Nachricht erfolgreich gesendet:", result);
+    debugLog('Nachricht erfolgreich gesendet', result);
     return result;
 
   } catch (error) {
     console.error(`Sendversuch ${retries + 1} fehlgeschlagen:`, error);
-    
     if (retries < CONFIG.MAX_RETRIES) {
       toast(`Sendversuch ${retries + 1} fehlgeschlagen, versuche erneut...`, "error", 2000);
       await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
@@ -345,114 +365,47 @@ async function sendMessageWithRetry(html, retries = 0) {
 /* ==================== COMPOSER SUBMIT ==================== */
 document.getElementById("composer").addEventListener("submit", async (e) => {
   e.preventDefault();
-  
   if (isLoading) return;
-  
   const html = editor.innerHTML.trim();
-  if (!html) {
-    toast("Bitte geben Sie eine Nachricht ein", "error");
-    return;
-  }
-
-  if (!canSendMessage()) {
-    toast("Konversation noch nicht geladen. Bitte warten...", "error");
-    return;
-  }
+  if (!html) { toast("Bitte geben Sie eine Nachricht ein", "error"); return; }
+  if (!canSendMessage()) { toast("Konversation noch nicht geladen. Bitte warten...", "error"); return; }
 
   // HTML bereinigen
   const sanitizedHtml = sanitizeHTML(html);
-  if (!sanitizedHtml.trim()) {
-    toast("Ungültige Nachricht", "error");
-    return;
-  }
+  if (!sanitizedHtml.trim()) { toast("Ungültige Nachricht", "error"); return; }
 
-  // UI auf Loading setzen
-  isLoading = true;
-  updateUI();
-  
-  // Optimistisches Rendering
-  const optimisticMsg = {
-    id: Date.now(),
-    content: sanitizedHtml,
-    created_at: Date.now(),
-    message_type: "outgoing"
-  };
+  isLoading = true; updateUI();
+  const optimisticMsg = { id: Date.now(), content: sanitizedHtml, created_at: Date.now(), message_type: "outgoing" };
   renderMsg(optimisticMsg);
-  
-  // Form zurücksetzen
-  editor.innerHTML = "";
-  templateSelect.value = "";
-
+  editor.innerHTML = ""; templateSelect.value = "";
   try {
     await sendMessageWithRetry(sanitizedHtml);
     toast("Nachricht erfolgreich gesendet", "success");
   } catch (error) {
     console.error("Endgültiger Fehler beim Senden:", error);
     toast(`Senden fehlgeschlagen: ${error.message}`, "error", 5000);
-    
-    // Optimistische Nachricht entfernen (in einer echten App würde man sie als "failed" markieren)
     renderedIds.delete(optimisticMsg.id);
-    // Die Nachricht aus dem DOM zu entfernen wäre komplexer, daher belassen wir es dabei
-  } finally {
-    isLoading = false;
-    updateUI();
-  }
+  } finally { isLoading = false; updateUI(); }
 });
 
 /* ===================== SHORTCUTS ===================== */
 document.addEventListener("keydown",e=>{
-  if(e.ctrlKey && e.key.toLowerCase()==="r"){
-    window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*");
-    toast("Aktualisierung angefordert", "info");
-    e.preventDefault();
-  }
-  
-  if(e.ctrlKey && e.key==="Enter" && !e.shiftKey){
-    document.getElementById("composer").dispatchEvent(new Event("submit"));
-    e.preventDefault();
-  }
+  if(e.ctrlKey && e.key.toLowerCase()==="r"){ window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*"); toast("Aktualisierung angefordert", "info"); e.preventDefault(); }
+  if(e.ctrlKey && e.key==="Enter" && !e.shiftKey){ document.getElementById("composer").dispatchEvent(new Event("submit")); e.preventDefault(); }
 });
 
 /* ===================== INITIALIZATION ===================== */
-// Initial UI Update
 updateUI();
-
-// Fallback: Falls nach 10 Sekunden keine Daten ankommen
 setTimeout(() => {
   if (!isReady) {
     console.warn("Keine Chatwoot-Daten nach 10 Sekunden erhalten, lade Debug-Fallback.");
-    // Dummy object matching Chatwoot appContext payload
-    const dummyEvent = {
-      event: "appContext",
-      data: {
-        conversation: {
-          id: 9999,
-          account_id: 1111,
-          inbox_id: 2222,
-          messages: [
-            { id: 1, content: "**Debug**: Willkommen!", created_at: new Date().toISOString(), message_type: "incoming" },
-            { id: 2, content: "Dies ist eine Dummy-Antwort.", created_at: new Date().toISOString(), message_type: "incoming" }
-          ]
-        },
-        contact: {
-          id: 5555,
-          identifier: "debug-user",
-          email: "debug@example.com"
-        }
-      }
-    };
-    // Simulate receiving the event
+    const dummyEvent = { event: "appContext", data: { conversation: { id: 9999, account_id: 1111, inbox_id: 2222, messages: [ { id: 1, content: "<strong>Debug</strong>: Willkommen!", created_at: new Date().toISOString(), message_type: "incoming" }, { id: 2, content: "Dies ist eine Dummy-Antwort.", created_at: new Date().toISOString(), message_type: "incoming" } ] }, contact: { id: 5555, identifier: "debug-user", email: "debug@example.com" } } };
     window.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(dummyEvent) }));
     toast("Debug-Fallback geladen", "info");
   }
 }, 10000);
 
-// Cleanup bei Seitenunload
-window.addEventListener("beforeunload", () => {
-  if (intervalId) {
-    clearInterval(intervalId);
-  }
-});
+window.addEventListener("beforeunload", () => { if (intervalId) clearInterval(intervalId); });
 </script>
 </body>
 </html>
