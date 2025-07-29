@@ -123,7 +123,6 @@
 /* === CONFIG === */
 const CONFIG = {
     CHATWOOT_BASE: "https://platform.myshopagent.ai",
-    API_INBOX_IDENTIFIER: "13",
     API_INBOX_TOKEN: "4pVTQyz8bqH9vMcmKzhqo54L",
     USE_SAME_ORIGIN: false,
     IFRAME_URL_TEMPLATE: "https://example.com/contact/{{EMAIL}}",
@@ -288,7 +287,9 @@ document.addEventListener('click', e => {
         emojiPicker.style.display = 'none';
     }
 });
+
 /* === SEND MESSAGE MIT CHATWOOT APPLICATION API === */
+
 function buildHeaders() {
   return {
     'Content-Type': 'application/json',
@@ -297,48 +298,57 @@ function buildHeaders() {
 }
 
 function buildEndpoint() {
-  // immer über die Application API senden
+  // Application API – accountId und conversationId stammen aus dem appContext-Event
   return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
 }
 
-async function sendMessageWithRetry(html, retries = 0) {
+async function sendMessageWithRetry(content, attempt = 0) {
   const endpoint = buildEndpoint();
-  console.log('Sende Nachricht an:', endpoint);
+  console.log(`Sende Nachricht an: ${endpoint}`);
+  
 
   try {
-    const response = await fetch(endpoint, {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: buildHeaders(),
       body: JSON.stringify({
-        content: html,
+        content: content,
         message_type: 'outgoing',
         content_type: 'text',
         private: false
       })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+	console.log("Nachricht:" + JSON.stringify({
+        content: content,
+        message_type: 'outgoing',
+        content_type: 'text',
+        private: false
+      }, null, 2));
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errText}`);
     }
 
-    const result = await response.json();
-    console.log('Nachricht erfolgreich gesendet:', result);
-    return result;
+    const json = await res.json();
+    console.log('Nachricht erfolgreich gesendet:', json);
+    return json;
 
-  } catch (error) {
-    console.error(`Sendversuch ${retries + 1} fehlgeschlagen:`, error);
+  } catch (err) {
+    console.error(`Sendversuch ${attempt + 1} fehlgeschlagen:`, err);
 
-    if (retries < CONFIG.MAX_RETRIES) {
-      toast(`Sendversuch ${retries + 1} fehlgeschlagen, versuche erneut...`, 'error', CONFIG.RETRY_DELAY);
-      await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
-      return sendMessageWithRetry(html, retries + 1);
+    if (attempt < CONFIG.MAX_RETRIES) {
+      toast(`Sendversuch ${attempt + 1} fehlgeschlagen, versuche erneut…`, 'error', CONFIG.RETRY_DELAY);
+      await new Promise(r => setTimeout(r, CONFIG.RETRY_DELAY));
+      return sendMessageWithRetry(content, attempt + 1);
     }
-
-    // nach allen Versuchen weiterreichen
-    throw error;
+    
+    // Nach allen Versuchen Fehler weiterreichen
+    throw err;
   }
 }
+
 
 qs('composer').addEventListener('submit', async e => {
     e.preventDefault();
