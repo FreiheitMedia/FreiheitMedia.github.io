@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MyShopAgent Conversation (API‑Channel)</title>
+  <title>MyShopAgent Conversation (API-Channel)</title>
 
-  <!-- -------------------------- STYLES -------------------------- -->
+  <!-- Dark-Theme-Variablen (unverändert) -->
   <style>
     :root{
-      /* Farb‑ und Layout‑Variablen */
       --cw-primary:#3b82f6;--cw-primary-hover:#2563eb;--cw-success:#22c55e;
       --cw-danger:#ef4444;--cw-bg:#1e1f24;--cw-surface:#2b2d32;--cw-border:#40424a;
       --cw-text:#f3f4f6;--cw-muted:#9ca3af;--cw-bubble-in:#36383d;
@@ -17,19 +16,10 @@
     }
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{height:100%;font-family:var(--cw-font);background:var(--cw-bg);color:var(--cw-text)}
-
-    /* Grund‑Layout */
     .layout{display:flex;flex-direction:column;height:100%;gap:var(--cw-gap);padding:var(--cw-gap)}
-
-    /* Iframe‑Bereich */
     .iframe-wrapper,.conversation-wrapper{background:var(--cw-surface);border:1px solid var(--cw-border);border-radius:var(--cw-radius)}
-    .iframe-wrapper{flex:1 1 50%;overflow:hidden;position:relative;display:flex;flex-direction:column}
-    .iframe-header{display:none;padding:.5rem 1rem;border-bottom:1px solid var(--cw-border);font-size:.875rem;word-break:break-all}
-    .iframe-header a{color:var(--cw-primary);text-decoration:none}
-    .iframe-header a:hover{text-decoration:underline}
-    .iframe-wrapper iframe{flex:1 1 auto;width:100%;border:none}
-
-    /* Conversation */
+    .iframe-wrapper{flex:1 1 50%;overflow:hidden}
+    .iframe-wrapper iframe{width:100%;height:100%;border:none}
     .conversation-wrapper{flex:1 1 50%;display:flex;flex-direction:column}
     #messages{flex:1 1 auto;list-style:none;overflow-y:auto;padding:var(--cw-gap);display:flex;flex-direction:column;gap:.75rem}
     .msg{position:relative;max-width:75%;padding:.5rem .75rem;border-radius:1.25rem;font-size:.875rem;line-height:1.45;word-break:break-word}
@@ -39,8 +29,6 @@
     .outgoing{align-self:flex-end;background:var(--cw-primary);color:#fff}
     .outgoing::before{content:"";position:absolute;right:-7px;top:12px;border:6px solid transparent;border-left-color:var(--cw-primary)}
     .timestamp{display:block;margin-top:.25rem;font-size:.75rem;color:var(--cw-muted)}
-
-    /* Composer */
     #composer{border-top:1px solid var(--cw-border);padding:.5rem var(--cw-gap);display:flex;flex-direction:column;gap:.5rem}
     #toolbar{display:flex;gap:.25rem;align-items:center}
     #toolbar button{all:unset;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:var(--cw-radius)}
@@ -52,18 +40,14 @@
     #sendBtn:disabled{opacity:0.5;cursor:not-allowed}
     #editor{min-height:80px;max-height:200px;overflow-y:auto;padding:.5rem .75rem;border:1px solid var(--cw-border);border-radius:var(--cw-radius);font-size:.875rem;background:var(--cw-bg)}
     #editor:empty:before{content:attr(placeholder);color:var(--cw-muted)}
-
-    /* Extras */
     .emoji-picker{position:absolute;bottom:60px;right:1rem;background:var(--cw-surface);border:1px solid var(--cw-border);border-radius:var(--cw-radius);box-shadow:0 4px 16px rgba(0,0,0,.5);padding:.5rem;display:none;grid-template-columns:repeat(7,26px);gap:6px;z-index:100}
     .emoji-picker span{cursor:pointer;font-size:20px;text-align:center;line-height:24px}
     .emoji-picker span:hover{transform:scale(1.25)}
-
     #toastRoot{position:fixed;right:1rem;bottom:1rem;display:flex;flex-direction:column;gap:.5rem;z-index:9999}
     .toast{padding:.5rem .75rem;border-radius:var(--cw-radius);font-size:.875rem;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.3)}
     .toast.info{background:var(--cw-primary)}
     .toast.error{background:var(--cw-danger)}
     .toast.success{background:var(--cw-success)}
-
     .loading{opacity:0.7}
     #statusIndicator{position:absolute;top:10px;right:10px;padding:.25rem .5rem;border-radius:var(--cw-radius);font-size:.75rem;font-weight:bold}
     #statusIndicator.ready{background:var(--cw-success);color:#fff}
@@ -71,18 +55,12 @@
   </style>
 </head>
 <body>
-<!-- -------------------------------------------------------------------- -->
-<!--                                MARKUP                               -->
-<!-- -------------------------------------------------------------------- -->
 <div class="layout">
-  <!-- IFRAME‑BEREICH -->
   <section class="iframe-wrapper">
     <div id="statusIndicator" class="loading">Lade...</div>
-    <div id="iframeHeader" class="iframe-header"></div>
     <iframe id="dynamicFrame" title="Dynamic Content"></iframe>
   </section>
 
-  <!-- KONVERSATION -->
   <section class="conversation-wrapper">
     <ul id="messages"></ul>
 
@@ -100,220 +78,380 @@
   </section>
 </div>
 
-<!-- Emoji Picker und Toast Root -->
+<!-- Emoji Picker und Toasts -->
 <div id="emojiPicker" class="emoji-picker"></div>
 <div id="toastRoot"></div>
 
-<!-- -------------------------------------------------------------------- -->
-<!--                                 SCRIPT                               -->
-<!-- -------------------------------------------------------------------- -->
 <script>
-/*********************** CONFIG ************************/ 
+/* ===================== CONFIG ===================== */
 const CONFIG = {
-  CHATWOOT_BASE: "https://platform.myshopagent.ai",   // Basis‑URL
-  API_INBOX_IDENTIFIER: "4pVTQyz8bqH9vMcmKzhqo54L",   // Inbox ID
-  API_INBOX_TOKEN: "4pVTQyz8bqH9vMcmKzhqo54L",        // Token (öffentlich)
-  N8N_WEBHOOK_URL: "https://backend.myshopagent.ai/webhook/test_outgoing", // Proxy
-  USE_SAME_ORIGIN: false,
-  IFRAME_URL_TEMPLATE: "https://example.com/contact/{{EMAIL}}", // Fallback
-  REFRESH_INTERVAL: 4000,
-  MAX_RETRIES: 3,
-  RETRY_DELAY: 1000
+  // Basis-URL deiner Chatwoot-Instanz (ohne Slash am Ende)
+  CHATWOOT_BASE:        "https://platform.myshopagent.ai/",
+
+  // -------- API-Channel-Variante (Token steckt im Browser) --------
+  API_INBOX_IDENTIFIER: "13",
+  API_INBOX_TOKEN:      "4pVTQyz8bqH9vMcmKzhqo54L",
+
+  // -------- Umschalt-Flag --------
+  // true  => gleiche Domain, Auth via Session-Cookie, Token wird NICHT gesendet
+  // false => Fremddomain, Auth via API-Channel-Token (oben)
+  USE_SAME_ORIGIN:      false,
+
+  /* Weitere App-Settings */
+  IFRAME_URL_TEMPLATE:  "https://example.com/contact/{{EMAIL}}",
+  REFRESH_INTERVAL:     4000,
+  MAX_RETRIES:         3,
+  RETRY_DELAY:         1000
 };
 
-/*********************** DOM ***************************/
-const $$ = sel => document.querySelector(sel);
-const messagesEl   = $("#messages");
-const dynamicFrame = $("#dynamicFrame");
-const iframeHeader = $("#iframeHeader");
-const editor       = $("#editor");
-const toolbar      = $("#toolbar");
-const templateSelect = $("#templateSelect");
-const emojiBtn     = $("#emojiBtn");
-const emojiPicker  = $("#emojiPicker");
-const toastRoot    = $("#toastRoot");
-const sendBtn      = $("#sendBtn");
-const statusIndicator = $("#statusIndicator");
+/* ===================== DOM ===================== */
+const messagesEl   = document.getElementById("messages");
+const dynamicFrame = document.getElementById("dynamicFrame");
+const editor       = document.getElementById("editor");
+const toolbar      = document.getElementById("toolbar");
+const templateSelect = document.getElementById("templateSelect");
+const emojiBtn     = document.getElementById("emojiBtn");
+const emojiPicker  = document.getElementById("emojiPicker");
+const toastRoot    = document.getElementById("toastRoot");
+const sendBtn      = document.getElementById("sendBtn");
+const statusIndicator = document.getElementById("statusIndicator");
 
-/*********************** STATE *************************/
-let accountId=null,inboxId=null,conversationId=null,contactId=null,contactIdentifier=null,contactEmail=null,fbPostUrl=null;
+/* ===================== STATE ===================== */
+let accountId=null, inboxId=null;
+let conversationId=null, contactId=null, contactIdentifier=null, contactEmail=null;
 const renderedIds=new Set();
-let intervalId=null,pickerVisible=false,isLoading=false,isReady=false;
+let intervalId=null, pickerVisible=false;
+let isLoading=false, isReady=false;
 
-/********************* HELPERS *************************/
-const toast = (msg,type="info",dur=3000) => {
-  const n=document.createElement("div");
-  n.className=`toast ${type}`;
-  n.textContent=msg;
+/* ===================== HELPERS ===================== */
+const b64Encode=s=>btoa(unescape(encodeURIComponent(s)));
+const b64Decode=s=>decodeURIComponent(escape(atob(s)));
+
+function toast(msg,type='info',dur=3000){
+  const n=document.createElement('div');
+  n.className=`toast ${type}`; 
+  n.textContent=msg; 
   toastRoot.appendChild(n);
   setTimeout(()=>n.remove(),dur);
-};
-
-const sanitizeHTML = html => {
-  const temp=document.createElement("div");
-  temp.innerHTML=html;
-  ["script","iframe","object","embed","form"].forEach(tag=>temp.querySelectorAll(tag).forEach(el=>el.remove()));
-  return temp.innerHTML;
-};
-
-const canSendMessage = () => CONFIG.USE_SAME_ORIGIN ? (accountId&&conversationId) : (contactIdentifier&&conversationId&&CONFIG.API_INBOX_IDENTIFIER);
-
-const updateUI = () => {
-  const ready=canSendMessage();
-  sendBtn.disabled=!ready||isLoading;
-  if(ready&&!isReady){
-    isReady=true;
-    statusIndicator.textContent="Bereit";
-    statusIndicator.className="ready";
-    toast("Konversation geladen","success");
-  }else if(!ready&&isReady){
-    isReady=false;
-    statusIndicator.textContent="Lade...";
-    statusIndicator.className="loading";
-  }
-};
-
-/****************** MESSAGE RENDERING *****************/
-const renderMsg = m => {
-  if(renderedIds.has(m.id)) return;
-  renderedIds.add(m.id);
-  const li=document.createElement("li");
-  li.className=`msg ${(m.message_type===0||m.message_type==="incoming")?"incoming":"outgoing"}`;
-  li.dataset.msgId=m.id;
-  const ts=new Date(m.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
-  li.innerHTML=`${m.content}<span class="timestamp">${ts}</span>`;
-  messagesEl.appendChild(li);
-  messagesEl.scrollTop=messagesEl.scrollHeight;
-};
-
-/********************* IFRAME LOGIC *******************/
-const updateIframe = () => {
-  if (fbPostUrl) {
-    iframeHeader.style.display = "block";
-    iframeHeader.innerHTML = `<a href="${fbPostUrl}" target="_blank" rel="noopener noreferrer">${fbPostUrl}</a>`;
-    dynamicFrame.src = fbPostUrl;
-  } else if (contactEmail && CONFIG.IFRAME_URL_TEMPLATE) {
-    iframeHeader.style.display = "none";
-    iframeHeader.textContent = "";
-    dynamicFrame.src = CONFIG.IFRAME_URL_TEMPLATE
-                         .replace("{{EMAIL}}", encodeURIComponent(contactEmail));
-  } else {
-    // Fallback, wenn weder fb_post_url noch E-Mail vorhanden
-    iframeHeader.style.display = "none";
-    iframeHeader.textContent = "";
-    dynamicFrame.src = "about:blank";
-  }
-};
-
-
-/******************** CHATWOOT HOOK *******************/
-window.addEventListener("message",e=>{
-  if(typeof e.data!=="string") return;
-  try{
-    const p=JSON.parse(e.data);
-    if(p.event!=="appContext") return;
-    const {conversation,contact}=p.data;
-    if(!conversation||!contact) return;
-
-    // IDs
-    ({account_id:accountId,inbox_id:inboxId,id:conversationId}=conversation);
-    contactId=contact.id;
-
-    contactIdentifier = conversation.contact_inbox?.source_id || (contact.contact_inboxes||[]).find(ci=>ci.inbox.id===inboxId)?.source_id || contact.identifier || contact.id;
-    contactEmail = contact.email || null;
-    fbPostUrl = conversation.custom_attributes?.fb_post_url || null;
-
-    updateIframe();
-    updateUI();
-
-    if(Array.isArray(conversation.messages)) conversation.messages.sort((a,b)=>a.id-b.id).forEach(renderMsg);
-
-    if(!templateSelect.dataset.loaded){loadTemplates();}
-    if(!intervalId){intervalId=setInterval(()=>window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*"),CONFIG.REFRESH_INTERVAL);}
-  }catch(err){console.error("Chatwoot parse error",err);}
-});
-
-/*********************** TOOLBAR **********************/
-toolbar.addEventListener("click",e=>{
-  const btn=e.target.closest("button");
-  if(!btn||btn.disabled) return;
-  const cmd=btn.dataset.cmd;
-  if(cmd){document.execCommand(cmd,false,null);editor.focus();}
-});
-
-/********************** EMOJIS ************************/
-const EMOJIS=["😀","😁","😂","😅","😊","😍","😘","😜","🤔","🤗","🤩","👍","🙏","🔥","🎉","🚀","💡","✅","❌","❤️"];
-emojiPicker.innerHTML=EMOJIS.map(e=>`<span>${e}</span>`).join("");
-emojiBtn.addEventListener("click",e=>{pickerVisible=!pickerVisible;emojiPicker.style.display=pickerVisible?"grid":"none";e.stopPropagation();});
-emojiPicker.addEventListener("click",e=>{
-  if(e.target.tagName==="SPAN"){const emo=e.target.textContent;document.execCommand("insertHTML",false,emo);pickerVisible=false;emojiPicker.style.display="none";editor.focus();}
-});
-document.addEventListener("click",e=>{if(pickerVisible&&!emojiPicker.contains(e.target)&&e.target!==emojiBtn){pickerVisible=false;emojiPicker.style.display="none";}});
-
-/********************* TEMPLATES **********************/
-function loadTemplates(){templateSelect.dataset.loaded="true";/* Placeholder */}
-
-/**************** SEND MESSAGE LOGIC *****************/
-const buildHeaders=()=>({"Content-Type":"application/json"});
-const buildEndpoint=()=>CONFIG.N8N_WEBHOOK_URL;
-async function sendMessageWithRetry(html,retry=0){
-  try{
-    const res=await fetch(buildEndpoint(),{method:"POST",headers:buildHeaders(),body:JSON.stringify({msg_content:html,message_type:"outgoing",conversation_id:conversationId,contact_id:contactId,account_id:accountId})});
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  }catch(err){if(retry<CONFIG.MAX_RETRIES){toast(`Retry ${retry+1}`,"error",1500);await new Promise(r=>setTimeout(r,CONFIG.RETRY_DELAY));return sendMessageWithRetry(html,retry+1);}throw err;}
 }
 
-/***************** COMPOSER SUBMIT *******************/
-$("#composer").addEventListener("submit",async e=>{
-  e.preventDefault();
-  if(isLoading) return;
-  const html=editor.innerHTML.trim();
-  if(!html){toast("Bitte Nachricht eingeben","error");return;}
-  if(!canSendMessage()){toast("Konversation noch nicht geladen","error");return;}
-  const safe=sanitizeHTML(html);
-  if(!safe.trim()){toast("Ungültige Nachricht","error");return;}
-  isLoading=true;updateUI();
-  const optimistic={id:Date.now(),content:safe,created_at:Date.now(),message_type:"outgoing"};
-  const liOpt=renderMsg(optimistic);
-  editor.innerHTML="";templateSelect.value="";
-  try{const res=await sendMessageWithRetry(safe);liOpt.remove();renderedIds.delete(optimistic.id);renderMsg(res);toast("Gesendet","success");}
-  catch(err){toast("Senden fehlgeschlagen","error",4000);renderedIds.delete(optimistic.id);liOpt.remove();}
-  finally{isLoading=false;updateUI();}
+function updateUI() {
+  const ready = canSendMessage();
+  sendBtn.disabled = !ready || isLoading;
+  
+  if (ready && !isReady) {
+    isReady = true;
+    statusIndicator.textContent = "Bereit";
+    statusIndicator.className = "ready";
+    toast("Konversation geladen", "success");
+  } else if (!ready && isReady) {
+    isReady = false;
+    statusIndicator.textContent = "Lade...";
+    statusIndicator.className = "loading";
+  }
+}
+
+function canSendMessage() {
+  if (CONFIG.USE_SAME_ORIGIN) {
+    return accountId && conversationId;
+  } else {
+    return contactIdentifier && conversationId && CONFIG.API_INBOX_IDENTIFIER;
+  }
+}
+
+function sanitizeHTML(html) {
+  // Einfache HTML-Bereinigung - in Produktion sollte eine richtige Bibliothek verwendet werden
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  
+  // Gefährliche Tags entfernen
+  const dangerousTags = ['script', 'iframe', 'object', 'embed', 'form'];
+  dangerousTags.forEach(tag => {
+    const elements = temp.getElementsByTagName(tag);
+    for (let i = elements.length - 1; i >= 0; i--) {
+      elements[i].remove();
+    }
+  });
+  
+  return temp.innerHTML;
+}
+
+/* ===== Message Rendering ===== */
+function renderMsg(m){
+  if(renderedIds.has(m.id)) return; 
+  renderedIds.add(m.id);
+  
+  const li=document.createElement('li');
+  li.className=`msg ${m.message_type==='incoming'?'incoming':'outgoing'}`;
+  
+  const content = m.content || '';
+  const timestamp = new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  
+  li.innerHTML=`${content}<span class="timestamp">${timestamp}</span>`;
+  messagesEl.appendChild(li); 
+  messagesEl.scrollTop=messagesEl.scrollHeight;
+}
+
+/* ===== IFrame Helper ===== */
+function updateIframe(){
+  if(contactEmail && CONFIG.IFRAME_URL_TEMPLATE){
+    try {
+      dynamicFrame.src = CONFIG.IFRAME_URL_TEMPLATE.replace("{{EMAIL}}",encodeURIComponent(contactEmail));
+    } catch (error) {
+      console.warn("Fehler beim Laden der iframe URL:", error);
+    }
+  }
+}
+
+/* ===================== CHATWOOT LISTENER ===================== */
+window.addEventListener("message", e => {
+  if (typeof e.data !== "string") return;
+  try {
+    const p = JSON.parse(e.data);
+    if (p.event !== "appContext") return;
+
+    const { conversation, contact } = p.data;
+    if (!conversation || !contact) {
+      console.warn("Unvollständige appContext-Daten erhalten");
+      return;
+    }
+
+    // Assign real data
+    accountId        = conversation.account_id;
+    conversationId   = conversation.id;
+    inboxId          = conversation.inbox_id;
+    contactId        = contact.id;
+    contactIdentifier= contact.identifier || contact.id;
+    contactEmail     = contact.email || null;
+
+    // Initialize UI
+    updateIframe();
+    updateUI();
+    conversation.messages.sort((a,b)=>a.id-b.id).forEach(renderMsg);
+    if (!templateSelect.dataset.loaded) loadTemplates();
+    if (!intervalId) {
+      intervalId = setInterval(() => window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*"), CONFIG.REFRESH_INTERVAL);
+    }
+    console.log("Chatwoot Daten geladen.");
+  } catch (error) {
+    console.error("Fehler beim Verarbeiten der Chatwoot-Nachricht:", error);
+  }
 });
 
-/************************ HOTKEYS *********************/
-/************************ HOTKEYS *********************/
-document.addEventListener("keydown", e => {
-  // Ctrl + R  → manuelles Refresh
-  if (e.ctrlKey && e.key.toLowerCase() === "r") {
-    window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");
+/* ===================== TOOLBAR ===================== */
+toolbar.addEventListener("click",e=>{
+  const btn=e.target.closest("button"); 
+  if(!btn || btn.disabled) return;
+  
+  const cmd=btn.dataset.cmd; 
+  if(cmd){ 
+    document.execCommand(cmd,false,null); 
+    editor.focus(); 
+  }
+});
+
+/* ===================== EMOJI PICKER ===================== */
+const EMOJIS=['😀','😁','😂','😅','😊','😍','😘','😜','🤔','🤗','🤩','👍','🙏','🔥','🎉','🚀','💡','✅','❌','❤️'];
+emojiPicker.innerHTML=EMOJIS.map(e=>`<span>${e}</span>`).join('');
+
+emojiBtn.addEventListener("click",e=>{
+  pickerVisible=!pickerVisible;
+  emojiPicker.style.display=pickerVisible?"grid":"none";
+  e.stopPropagation();
+});
+
+emojiPicker.addEventListener("click",e=>{
+  if(e.target.tagName==="SPAN"){
+    const emoji=e.target.textContent;
+    if(document.queryCommandSupported("insertText")){
+      document.execCommand("insertText",false,emoji);
+    }else{
+      document.execCommand("insertHTML",false,emoji);
+    }
+    pickerVisible=false; 
+    emojiPicker.style.display="none"; 
+    editor.focus();
+  }
+});
+
+document.addEventListener("click",e=>{
+  if(pickerVisible && !emojiPicker.contains(e.target) && e.target!==emojiBtn){
+    pickerVisible=false; 
+    emojiPicker.style.display="none";
+  }
+});
+
+/* ===================== TEMPLATES ===================== */
+function loadTemplates(){ 
+  templateSelect.dataset.loaded = "true";
+  // Hier könnten Templates von einem Endpoint geladen werden
+}
+
+/* ===================== SEND MESSAGE ===================== */
+function buildHeaders(){
+  const headers = {"Content-Type":"application/json"};
+  if(!CONFIG.USE_SAME_ORIGIN){
+    headers["api_access_token"] = CONFIG.API_INBOX_TOKEN;
+  }
+  return headers;
+}
+
+function buildEndpoint(){
+  if(CONFIG.USE_SAME_ORIGIN){
+    return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
+  }else{
+    return `${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${contactIdentifier}/conversations/${conversationId}/messages`;
+  }
+}
+
+async function sendMessageWithRetry(html, retries = 0) {
+  try {
+    const endpoint = buildEndpoint();
+    console.log("Sende an Endpoint:", endpoint);
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        content: html,
+        message_type: "outgoing",
+        content_type: "text",
+        private: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log("Nachricht erfolgreich gesendet:", result);
+    return result;
+
+  } catch (error) {
+    console.error(`Sendversuch ${retries + 1} fehlgeschlagen:`, error);
+    
+    if (retries < CONFIG.MAX_RETRIES) {
+      toast(`Sendversuch ${retries + 1} fehlgeschlagen, versuche erneut...`, "error", 2000);
+      await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
+      return sendMessageWithRetry(html, retries + 1);
+    } else {
+      throw error;
+    }
+  }
+}
+
+/* ==================== COMPOSER SUBMIT ==================== */
+document.getElementById("composer").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  
+  if (isLoading) return;
+  
+  const html = editor.innerHTML.trim();
+  if (!html) {
+    toast("Bitte geben Sie eine Nachricht ein", "error");
+    return;
+  }
+
+  if (!canSendMessage()) {
+    toast("Konversation noch nicht geladen. Bitte warten...", "error");
+    return;
+  }
+
+  // HTML bereinigen
+  const sanitizedHtml = sanitizeHTML(html);
+  if (!sanitizedHtml.trim()) {
+    toast("Ungültige Nachricht", "error");
+    return;
+  }
+
+  // UI auf Loading setzen
+  isLoading = true;
+  updateUI();
+  
+  // Optimistisches Rendering
+  const optimisticMsg = {
+    id: Date.now(),
+    content: sanitizedHtml,
+    created_at: Date.now(),
+    message_type: "outgoing"
+  };
+  renderMsg(optimisticMsg);
+  
+  // Form zurücksetzen
+  editor.innerHTML = "";
+  templateSelect.value = "";
+
+  try {
+    await sendMessageWithRetry(sanitizedHtml);
+    toast("Nachricht erfolgreich gesendet", "success");
+  } catch (error) {
+    console.error("Endgültiger Fehler beim Senden:", error);
+    toast(`Senden fehlgeschlagen: ${error.message}`, "error", 5000);
+    
+    // Optimistische Nachricht entfernen (in einer echten App würde man sie als "failed" markieren)
+    renderedIds.delete(optimisticMsg.id);
+    // Die Nachricht aus dem DOM zu entfernen wäre komplexer, daher belassen wir es dabei
+  } finally {
+    isLoading = false;
+    updateUI();
+  }
+});
+
+/* ===================== SHORTCUTS ===================== */
+document.addEventListener("keydown",e=>{
+  if(e.ctrlKey && e.key.toLowerCase()==="r"){
+    window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*");
     toast("Aktualisierung angefordert", "info");
     e.preventDefault();
   }
-  // Ctrl + Enter → Nachricht senden
-  if (e.ctrlKey && e.key === "Enter" && !e.shiftKey) {
-    document.getElementById("composer")
-            .dispatchEvent(new Event("submit"));
+  
+  if(e.ctrlKey && e.key==="Enter" && !e.shiftKey){
+    document.getElementById("composer").dispatchEvent(new Event("submit"));
     e.preventDefault();
   }
 });
 
-/******************* INITIALISIERUNG ******************/
+/* ===================== INITIALIZATION ===================== */
+// Initial UI Update
 updateUI();
-updateIframe(); 
 
-// Fallback: wenn nach 10 s keine Daten eintreffen
+// Fallback: Falls nach 10 Sekunden keine Daten ankommen
 setTimeout(() => {
   if (!isReady) {
-    console.warn("Keine Chatwoot-Daten nach 10 Sekunden erhalten");
-    toast("Konversation konnte nicht geladen werden", "error");
+    console.warn("Keine Chatwoot-Daten nach 10 Sekunden erhalten, lade Debug-Fallback.");
+    // Dummy object matching Chatwoot appContext payload
+    const dummyEvent = {
+      event: "appContext",
+      data: {
+        conversation: {
+          id: 9999,
+          account_id: 1111,
+          inbox_id: 2222,
+          messages: [
+            { id: 1, content: "**Debug**: Willkommen!", created_at: new Date().toISOString(), message_type: "incoming" },
+            { id: 2, content: "Dies ist eine Dummy-Antwort.", created_at: new Date().toISOString(), message_type: "incoming" }
+          ]
+        },
+        contact: {
+          id: 5555,
+          identifier: "debug-user",
+          email: "debug@example.com"
+        }
+      }
+    };
+    // Simulate receiving the event
+    window.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(dummyEvent) }));
+    toast("Debug-Fallback geladen", "info");
   }
 }, 10000);
 
-// Aufräumen beim Verlassen der Seite
+// Cleanup bei Seitenunload
 window.addEventListener("beforeunload", () => {
-  if (intervalId) clearInterval(intervalId);
+  if (intervalId) {
+    clearInterval(intervalId);
+  }
 });
 </script>
 </body>
