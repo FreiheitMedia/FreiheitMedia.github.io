@@ -288,38 +288,58 @@ document.addEventListener('click', e => {
         emojiPicker.style.display = 'none';
     }
 });
-/* === SEND === */
-const buildHeaders = () => {
-    const h = {
-        'Content-Type': 'application/json'
-    };
-    if (!CONFIG.USE_SAME_ORIGIN) h.api_access_token = CONFIG.API_INBOX_TOKEN;
-    return h;
-};
-const buildEndpoint = () => CONFIG.USE_SAME_ORIGIN ? `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages` : `${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${contactIdentifier}/conversations/${conversationId}/messages`;
-async function sendWithRetry(html, retry = 0) {
-    try {
-        const res = await fetch(buildEndpoint(), {
-            method: 'POST',
-            headers: buildHeaders(),
-            body: JSON.stringify({
-                content: html,
-                message_type: 'outgoing',
-                content_type: 'text',
-                private: false
-            })
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        debugLog('Message sent');
-    } catch (err) {
-        if (retry < CONFIG.MAX_RETRIES) {
-            toast('Retry…', 'error');
-            await new Promise(r => setTimeout(r, CONFIG.RETRY_DELAY));
-            return sendWithRetry(html, retry + 1);
-        }
-        throw err;
-    }
+/* === SEND MESSAGE MIT CHATWOOT APPLICATION API === */
+function buildHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'api_access_token': CONFIG.API_INBOX_TOKEN
+  };
 }
+
+function buildEndpoint() {
+  // immer über die Application API senden
+  return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
+}
+
+async function sendMessageWithRetry(html, retries = 0) {
+  const endpoint = buildEndpoint();
+  console.log('Sende Nachricht an:', endpoint);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        content: html,
+        message_type: 'outgoing',
+        content_type: 'text',
+        private: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('Nachricht erfolgreich gesendet:', result);
+    return result;
+
+  } catch (error) {
+    console.error(`Sendversuch ${retries + 1} fehlgeschlagen:`, error);
+
+    if (retries < CONFIG.MAX_RETRIES) {
+      toast(`Sendversuch ${retries + 1} fehlgeschlagen, versuche erneut...`, 'error', CONFIG.RETRY_DELAY);
+      await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
+      return sendMessageWithRetry(html, retries + 1);
+    }
+
+    // nach allen Versuchen weiterreichen
+    throw error;
+  }
+}
+
 qs('composer').addEventListener('submit', async e => {
     e.preventDefault();
     if (isLoading) return;
@@ -339,7 +359,7 @@ qs('composer').addEventListener('submit', async e => {
     renderMsg(optimistic);
     editor.innerHTML = '';
     try {
-        await sendWithRetry(clean);
+        await sendMessageWithRetry(clean);
         toast('Gesendet', 'success');
     } catch (err) {
         toast(err.message, 'error');
