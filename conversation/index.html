@@ -3,24 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MyShopAgent Conversation (API‑Channel – Debug)</title>
+  <title>MyShopAgent Conversation (API-Channel – Debug)</title>
 
-  <!-- Dark‑Theme‑Variablen (unverändert) -->
   <style>
     :root{
-      --cw-primary:#3b82f6;--cw-primary-hover:#2563eb;--cw-success:#22c55e;
-      --cw-danger:#ef4444;--cw-bg:#1e1f24;--cw-surface:#2b2d32;--cw-border:#40424a;
-      --cw-text:#f3f4f6;--cw-muted:#9ca3af;--cw-bubble-in:#36383d;
-      --cw-bubble-in-border:#50525a;--cw-radius:.5rem;--cw-gap:1rem;
+      --cw-primary:#3b82f6;--cw-primary-hover:#2563eb;--cw-success:#22c55e;--cw-danger:#ef4444;
+      --cw-bg:#1e1f24;--cw-surface:#2b2d32;--cw-border:#40424a;--cw-text:#f3f4f6;--cw-muted:#9ca3af;
+      --cw-bubble-in:#36383d;--cw-bubble-in-border:#50525a;--cw-radius:.5rem;--cw-gap:1rem;
       --cw-font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
     }
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{height:100%;font-family:var(--cw-font);background:var(--cw-bg);color:var(--cw-text)}
     .layout{display:flex;flex-direction:column;height:100%;gap:var(--cw-gap);padding:var(--cw-gap)}
     .iframe-wrapper,.conversation-wrapper{background:var(--cw-surface);border:1px solid var(--cw-border);border-radius:var(--cw-radius)}
-    .iframe-wrapper{flex:1 1 50%;overflow:hidden;position:relative}
+    .iframe-wrapper{flex:0 0 auto;max-height:480px;overflow:hidden;position:relative}
     .iframe-wrapper iframe{width:100%;height:100%;border:none}
-    .conversation-wrapper{flex:1 1 50%;display:flex;flex-direction:column}
+    .conversation-wrapper{flex:1 1 auto;display:flex;flex-direction:column}
     #messages{flex:1 1 auto;list-style:none;overflow-y:auto;padding:var(--cw-gap);display:flex;flex-direction:column;gap:.75rem}
     .msg{position:relative;max-width:75%;padding:.5rem .75rem;border-radius:1.25rem;font-size:.875rem;line-height:1.45;word-break:break-word}
     .incoming{align-self:flex-start;background:var(--cw-bubble-in);border:1px solid var(--cw-bubble-in-border)}
@@ -29,27 +27,26 @@
     .outgoing{align-self:flex-end;background:var(--cw-primary);color:#fff}
     .outgoing::before{content:"";position:absolute;right:-7px;top:12px;border:6px solid transparent;border-left-color:var(--cw-primary)}
     .timestamp{display:block;margin-top:.25rem;font-size:.75rem;color:var(--cw-muted)}
-    #composer{border-top:1px solid var(--cw-border);padding:.5rem var(--cw-gap);display:flex;flex-direction:column;gap:.5rem}
-    #toolbar{display:flex;gap:.25rem;align-items:center}
-    #toolbar button{all:unset;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:var(--cw-radius)}
+    #composer{border-top:1px solid var(--cw-border);padding:.6rem var(--cw-gap);display:flex;flex-direction:column;gap:.6rem}
+    #toolbar{display:flex;gap:.3rem;align-items:center}
+    #toolbar button{all:unset;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:var(--cw-radius)}
     #toolbar button:hover{background:var(--cw-border)}
     #toolbar button:disabled{opacity:0.5;cursor:not-allowed}
-    #templateSelect{flex:0 0 200px;padding:.375rem .5rem;border:1px solid var(--cw-border);border-radius:var(--cw-radius);background:var(--cw-surface);color:var(--cw-text);font-size:.875rem}
-    #sendBtn{background:var(--cw-primary);color:#fff;padding:.5rem 1rem;border-radius:var(--cw-radius);font-size:.875rem;border:none;cursor:pointer}
+    #templateSelect{flex:0 0 200px;padding:.4rem .6rem;border:1px solid var(--cw-border);border-radius:var(--cw-radius);background:var(--cw-surface);color:var(--cw-text);font-size:.875rem}
+    #sendBtn{background:var(--cw-primary);color:#fff;padding:.55rem 1.2rem;border-radius:var(--cw-radius);font-size:.875rem;border:none;cursor:pointer;font-weight:600}
     #sendBtn:hover:not(:disabled){background:var(--cw-primary-hover)}
     #sendBtn:disabled{opacity:0.5;cursor:not-allowed}
-    #editor{min-height:80px;max-height:200px;overflow-y:auto;padding:.5rem .75rem;border:1px solid var(--cw-border);border-radius:var(--cw-radius);font-size:.875rem;background:var(--cw-bg)}
+    #editor{min-height:90px;max-height:220px;overflow-y:auto;padding:.55rem .8rem;border:1px solid var(--cw-border);border-radius:var(--cw-radius);font-size:.875rem;background:var(--cw-bg)}
     #editor:empty:before{content:attr(placeholder);color:var(--cw-muted)}
     .emoji-picker{position:absolute;bottom:60px;right:1rem;background:var(--cw-surface);border:1px solid var(--cw-border);border-radius:var(--cw-radius);box-shadow:0 4px 16px rgba(0,0,0,.5);padding:.5rem;display:none;grid-template-columns:repeat(7,26px);gap:6px;z-index:100}
     .emoji-picker span{cursor:pointer;font-size:20px;text-align:center;line-height:24px}
     .emoji-picker span:hover{transform:scale(1.25)}
     #toastRoot{position:fixed;right:1rem;bottom:1rem;display:flex;flex-direction:column;gap:.5rem;z-index:9999}
-    .toast{padding:.5rem .75rem;border-radius:var(--cw-radius);font-size:.875rem;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+    .toast{padding:.55rem .9rem;border-radius:var(--cw-radius);font-size:.85rem;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.3)}
     .toast.info{background:var(--cw-primary)}
     .toast.error{background:var(--cw-danger)}
     .toast.success{background:var(--cw-success)}
-    .loading{opacity:0.7}
-    #statusIndicator{position:absolute;top:10px;right:10px;padding:.25rem .5rem;border-radius:var(--cw-radius);font-size:.75rem;font-weight:bold}
+    #statusIndicator{position:absolute;top:10px;right:10px;padding:.25rem .55rem;border-radius:var(--cw-radius);font-size:.7rem;font-weight:700}
     #statusIndicator.ready{background:var(--cw-success);color:#fff}
     #statusIndicator.loading{background:var(--cw-muted);color:#fff}
   </style>
@@ -57,17 +54,16 @@
 <body>
 <div class="layout">
   <section class="iframe-wrapper">
-    <div id="statusIndicator" class="loading">Lade...</div>
+    <div id="statusIndicator" class="loading">Lade…</div>
     <iframe id="dynamicFrame" title="Dynamic Content"></iframe>
   </section>
 
   <section class="conversation-wrapper">
     <ul id="messages"></ul>
-
     <form id="composer">
       <div id="toolbar">
-        <button type="button" data-cmd="bold" title="Fett (Strg+B)"><strong>B</strong></button>
-        <button type="button" data-cmd="italic" title="Kursiv (Strg+I)"><em>I</em></button>
+        <button type="button" data-cmd="bold" title="Fett (Ctrl+B)"><strong>B</strong></button>
+        <button type="button" data-cmd="italic" title="Kursiv (Ctrl+I)"><em>I</em></button>
         <button type="button" data-cmd="insertUnorderedList" title="Liste">• • •</button>
         <select id="templateSelect"><option value="">‒ Vorlage wählen ‒</option></select>
         <button id="emojiBtn" type="button" title="Emoji">😊</button>
@@ -78,334 +74,66 @@
   </section>
 </div>
 
-<!-- Emoji Picker und Toasts -->
 <div id="emojiPicker" class="emoji-picker"></div>
 <div id="toastRoot"></div>
 
 <script>
-/* ===================== CONFIG ===================== */
-const CONFIG = {
-  // Basis‑URL deiner Chatwoot‑Instanz (ohne Slash am Ende)
-  CHATWOOT_BASE:        "https://platform.myshopagent.ai",
-
-  // -------- API‑Channel‑Variante (Token steckt im Browser) --------
-  API_INBOX_IDENTIFIER: "13",
-  API_INBOX_TOKEN:      "4pVTQyz8bqH9vMcmKzhqo54L",
-
-  // -------- Umschalt‑Flag --------
-  // true  => gleiche Domain, Auth via Session‑Cookie, Token wird NICHT gesendet
-  // false => Fremddomain, Auth via API‑Channel‑Token (oben)
-  USE_SAME_ORIGIN:      false,
-
-  /* Weitere App‑Settings */
-  IFRAME_URL_TEMPLATE:  "https://example.com/contact/{{EMAIL}}",
-  REFRESH_INTERVAL:     4000,
-  MAX_RETRIES:          3,
-  RETRY_DELAY:          1000,
-
-  /* Debug‑Flag: Schaltet zusätzliche Logs & Toasts ein */
-  DEBUG:                true
-};
-
-/* ===================== DOM ===================== */
-const messagesEl       = document.getElementById("messages");
-const dynamicFrame     = document.getElementById("dynamicFrame");
-const editor           = document.getElementById("editor");
-const toolbar          = document.getElementById("toolbar");
-const templateSelect   = document.getElementById("templateSelect");
-const emojiBtn         = document.getElementById("emojiBtn");
-const emojiPicker      = document.getElementById("emojiPicker");
-const toastRoot        = document.getElementById("toastRoot");
-const sendBtn          = document.getElementById("sendBtn");
-const statusIndicator  = document.getElementById("statusIndicator");
-
-/* ===================== STATE ===================== */
-let accountId=null, inboxId=null;
-let conversationId=null, contactId=null, contactIdentifier=null, contactEmail=null;
-let fbEmbedLink=null; // <-- NEW: ggf. URL des FB‑Posts
+/* === CONFIG === */
+const CONFIG={CHATWOOT_BASE:"https://platform.myshopagent.ai",API_INBOX_IDENTIFIER:"13",API_INBOX_TOKEN:"4pVTQyz8bqH9vMcmKzhqo54L",USE_SAME_ORIGIN:false,IFRAME_URL_TEMPLATE:"https://example.com/contact/{{EMAIL}}",REFRESH_INTERVAL:4000,MAX_RETRIES:3,RETRY_DELAY:1000,DEBUG:true};
+/* === DOM === */
+const qs=id=>document.getElementById(id);
+const messagesEl=qs('messages');
+const dynamicFrame=qs('dynamicFrame');
+const editor=qs('editor');
+const toolbar=qs('toolbar');
+const templateSelect=qs('templateSelect');
+const emojiBtn=qs('emojiBtn');
+const emojiPicker=qs('emojiPicker');
+const toastRoot=qs('toastRoot');
+const sendBtn=qs('sendBtn');
+const statusInd=qs('statusIndicator');
+/* === STATE === */
+let accountId=null,conversationId=null,inboxId=null;
+let contactIdentifier=null,contactEmail=null;
+let fbEmbedLink=null;
 const renderedIds=new Set();
-let intervalId=null, pickerVisible=false;
-let isLoading=false, isReady=false;
-
-/* ===================== HELPERS ===================== */
-const b64Encode=s=>btoa(unescape(encodeURIComponent(s)));
-const b64Decode=s=>decodeURIComponent(escape(atob(s)));
-
-function toast(msg,type='info',dur=3000){
-  const n=document.createElement('div');
-  n.className=`toast ${type}`; 
-  n.textContent=msg; 
-  toastRoot.appendChild(n);
-  setTimeout(()=>n.remove(),dur);
-}
-
-// Zentrale Debug‑Ausgabe (Konsole + optional Toast)
-function debugLog(...args){
-  if(!CONFIG.DEBUG) return;
-  console.debug('[DEBUG]',...args);
-  const first = typeof args[0]==='string' ? args[0] : JSON.stringify(args[0]);
-  toast(first,'info',2000);
-}
-
-function updateUI() {
-  const ready = canSendMessage();
-  sendBtn.disabled = !ready || isLoading;
-  
-  if (ready && !isReady) {
-    isReady = true;
-    statusIndicator.textContent = "Bereit";
-    statusIndicator.className = "ready";
-    toast("Konversation geladen", "success");
-  } else if (!ready && isReady) {
-    isReady = false;
-    statusIndicator.textContent = "Lade...";
-    statusIndicator.className = "loading";
-  }
-}
-
-function canSendMessage() {
-  if (CONFIG.USE_SAME_ORIGIN) {
-    return accountId && conversationId;
-  } else {
-    return contactIdentifier && conversationId && CONFIG.API_INBOX_IDENTIFIER;
-  }
-}
-
-function sanitizeHTML(html) {
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  const dangerousTags = ['script', 'iframe', 'object', 'embed', 'form'];
-  dangerousTags.forEach(tag => [...temp.getElementsByTagName(tag)].forEach(el=>el.remove()));
-  return temp.innerHTML;
-}
-
-/* ===== Message Rendering ===== */
-function renderMsg(m){
-  if(renderedIds.has(m.id)) return; 
-  renderedIds.add(m.id);
-  
-  const li=document.createElement('li');
-  li.className=`msg ${m.message_type==='incoming'?'incoming':'outgoing'}`;
-  const content = m.content || '';
-  const timestamp = new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  li.innerHTML=`${content}<span class="timestamp">${timestamp}</span>`;
-  messagesEl.appendChild(li); 
-  messagesEl.scrollTop=messagesEl.scrollHeight;
-}
-
-/* ===== IFrame Helper ===== */
-function buildFbEmbedUrl(permalink){
-  return `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(permalink)}&show_text=true&width=500`;
-}
-
-function updateIframe(){
-  try{
-    if(fbEmbedLink){
-      dynamicFrame.src = buildFbEmbedUrl(fbEmbedLink);
-      debugLog('iframe setzt FB‑Embed‑URL', dynamicFrame.src);
-    }else if(contactEmail && CONFIG.IFRAME_URL_TEMPLATE){
-      dynamicFrame.src = CONFIG.IFRAME_URL_TEMPLATE.replace("{{EMAIL}}",encodeURIComponent(contactEmail));
-      debugLog('iframe setzt Kontakt‑URL', dynamicFrame.src);
-    }
-  }catch(err){
-    console.warn('Fehler beim Laden der iframe URL:', err);
-  }
-}
-
-dynamicFrame.addEventListener('load', ()=>debugLog('iframe geladen', dynamicFrame.src));
-
-/* ===================== CHATWOOT LISTENER ===================== */
-window.addEventListener("message", e => {
-  debugLog('postMessage empfangen', e.data);
-  if (typeof e.data !== "string") return;
-  try {
-    const p = JSON.parse(e.data);
-    if (p.event !== "appContext") return;
-
-    const { conversation, contact } = p.data;
-    if (!conversation || !contact) {
-      console.warn("Unvollständige appContext‑Daten erhalten");
-      return;
-    }
-
-    // Grunddaten übernehmen
-    accountId        = conversation.account_id;
-    conversationId   = conversation.id;
-    inboxId          = conversation.inbox_id;
-    contactId        = contact.id;
-    contactIdentifier= contact.identifier || contact.id;
-    contactEmail     = contact.email || null;
-
-    // ==== Custom‑Attribute prüfen (neue FB‑Logik) ====
-    const custom = contact.custom_attributes || {};
-    fbEmbedLink = custom.fb_post_url || null;
-    if(!fbEmbedLink && (custom.fb_post_id || custom.story_fbid) && custom.fb_id){
-      const storyId = custom.fb_post_id || custom.story_fbid;
-      fbEmbedLink = `https://www.facebook.com/permalink.php?story_fbid=${storyId}&id=${custom.fb_id}`;
-    }
-    debugLog('fbEmbedLink ermittelt', fbEmbedLink);
-
-    // UI aktualisieren
-    updateIframe();
-    updateUI();
-    conversation.messages.sort((a,b)=>a.id-b.id).forEach(renderMsg);
-    if (!templateSelect.dataset.loaded) loadTemplates();
-    if (!intervalId) {
-      intervalId = setInterval(() => window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*"), CONFIG.REFRESH_INTERVAL);
-    }
-    debugLog('Chatwoot Daten verarbeitet');
-  } catch (error) {
-    console.error("Fehler beim Verarbeiten der Chatwoot-Nachricht:", error);
-  }
-});
-
-/* ===================== TOOLBAR ===================== */
-toolbar.addEventListener("click",e=>{
-  const btn=e.target.closest("button"); 
-  if(!btn || btn.disabled) return;
-  const cmd=btn.dataset.cmd; 
-  if(cmd){ 
-    document.execCommand(cmd,false,null); 
-    editor.focus(); 
-  }
-});
-
-/* ===================== EMOJI PICKER ===================== */
+let intervalId=null,pickerVisible=false;
+let isLoading=false,isReady=false;
+/* === HELPERS === */
+const toast=(msg,type='info',dur=2500)=>{if(!CONFIG.DEBUG&&type==='info')return;const n=document.createElement('div');n.className=`toast ${type}`;n.textContent=msg;toastRoot.appendChild(n);setTimeout(()=>n.remove(),dur);};
+const debugLog=(...args)=>{if(!CONFIG.DEBUG)return;console.debug('[DEBUG]',...args);if(typeof args[0]==='string'&&!args[0].startsWith('chatwoot-dashboard'))toast(args[0]);};
+const sanitizeHTML=html=>{const t=document.createElement('div');t.innerHTML=html;['script','iframe','object','embed','form'].forEach(tag=>[...t.getElementsByTagName(tag)].forEach(el=>el.remove()));return t.innerHTML;};
+const canSendMessage=()=>CONFIG.USE_SAME_ORIGIN?(accountId&&conversationId):(contactIdentifier&&conversationId);
+const updateUI=()=>{const ok=canSendMessage();sendBtn.disabled=!ok||isLoading;if(ok&&!isReady){isReady=true;statusInd.textContent='Bereit';statusInd.className='ready';}else if(!ok&&isReady){isReady=false;statusInd.textContent='Lade…';statusInd.className='loading';}};
+/* === RENDER === */
+function renderMsg(m){if(renderedIds.has(m.id))return;renderedIds.add(m.id);const li=document.createElement('li');li.className=`msg ${m.message_type===0||m.message_type==='incoming'?'incoming':'outgoing'}`;const ts=new Date((m.created_at<1e12?m.created_at*1000:m.created_at));li.innerHTML=`${m.content}<span class="timestamp">${ts.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>`;messagesEl.appendChild(li);messagesEl.scrollTop=messagesEl.scrollHeight;}
+/* === IFRAME === */
+const buildFbEmbed=link=>`https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(link)}&show_text=true&adapt_container_width=true&width=500`;
+const updateIframe=()=>{try{if(fbEmbedLink){dynamicFrame.src=buildFbEmbed(fbEmbedLink);}else if(contactEmail){dynamicFrame.src=CONFIG.IFRAME_URL_TEMPLATE.replace('{{EMAIL}}',encodeURIComponent(contactEmail));}}catch(e){console.error(e);} };
+dynamicFrame.addEventListener('load',()=>debugLog('iframe loaded',dynamicFrame.src));
+/* === CHATWOOT LISTENER === */
+window.addEventListener('message',e=>{if(typeof e.data!=='string')return; if(!e.data.trim().startsWith('{')) return; try{const p=JSON.parse(e.data); if(p.event!=='appContext')return; const {conversation,contact}=p.data; accountId=conversation.account_id;conversationId=conversation.id;inboxId=conversation.inbox_id; contactIdentifier=(contact.identifier||contact.id);contactEmail=contact.email||null; const custom={...contact.custom_attributes,...conversation.custom_attributes}; fbEmbedLink=custom.fb_post_url||null; if(!fbEmbedLink&&(custom.fb_post_id||custom.story_fbid)&&custom.fb_id){const id=custom.fb_post_id||custom.story_fbid;fbEmbedLink=`https://www.facebook.com/permalink.php?story_fbid=${id}&id=${custom.fb_id}`;} debugLog('fbEmbedLink',fbEmbedLink); (conversation.messages||[]).sort((a,b)=>a.id-b.id).forEach(renderMsg); updateIframe();updateUI(); if(!intervalId){intervalId=setInterval(()=>window.parent.postMessage('chatwoot-dashboard-app:fetch-info','*'),CONFIG.REFRESH_INTERVAL);} }catch(err){console.error(err);}});
+/* === TOOLBAR === */
+toolbar.addEventListener('click',e=>{const b=e.target.closest('button');if(!(b&&b.dataset.cmd))return;document.execCommand(b.dataset.cmd,false,null);editor.focus();});
+/* === EMOJI === */
 const EMOJIS=['😀','😁','😂','😅','😊','😍','😘','😜','🤔','🤗','🤩','👍','🙏','🔥','🎉','🚀','💡','✅','❌','❤️'];
 emojiPicker.innerHTML=EMOJIS.map(e=>`<span>${e}</span>`).join('');
-
-emojiBtn.addEventListener("click",e=>{
-  pickerVisible=!pickerVisible;
-  emojiPicker.style.display=pickerVisible?"grid":"none";
-  e.stopPropagation();
-});
-
-emojiPicker.addEventListener("click",e=>{
-  if(e.target.tagName==="SPAN"){
-    const emoji=e.target.textContent;
-    if(document.queryCommandSupported("insertText")){
-      document.execCommand("insertText",false,emoji);
-    }else{
-      document.execCommand("insertHTML",false,emoji);
-    }
-    pickerVisible=false; 
-    emojiPicker.style.display="none"; 
-    editor.focus();
-  }
-});
-
-document.addEventListener("click",e=>{
-  if(pickerVisible && !emojiPicker.contains(e.target) && e.target!==emojiBtn){
-    pickerVisible=false; 
-    emojiPicker.style.display="none";
-  }
-});
-
-/* ===================== TEMPLATES ===================== */
-function loadTemplates(){ 
-  templateSelect.dataset.loaded = "true";
-  debugLog('Templates geladen (Platzhalter)');
-  // Hier könnten Templates von einem Endpoint geladen werden
-}
-
-/* ===================== SEND MESSAGE ===================== */
-function buildHeaders(){
-  const headers = {"Content-Type":"application/json"};
-  if(!CONFIG.USE_SAME_ORIGIN){
-    headers["api_access_token"] = CONFIG.API_INBOX_TOKEN;
-  }
-  return headers;
-}
-
-function buildEndpoint(){
-  if(CONFIG.USE_SAME_ORIGIN){
-    return `${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`;
-  }else{
-    return `${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${contactIdentifier}/conversations/${conversationId}/messages`;
-  }
-}
-
-async function sendMessageWithRetry(html, retries = 0) {
-  try {
-    const endpoint = buildEndpoint();
-    debugLog('Sende an Endpoint', endpoint);
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: buildHeaders(),
-      body: JSON.stringify({
-        content: html,
-        message_type: "outgoing",
-        content_type: "text",
-        private: false
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
-    }
-
-    const result = await response.json();
-    debugLog('Nachricht erfolgreich gesendet', result);
-    return result;
-
-  } catch (error) {
-    console.error(`Sendversuch ${retries + 1} fehlgeschlagen:`, error);
-    if (retries < CONFIG.MAX_RETRIES) {
-      toast(`Sendversuch ${retries + 1} fehlgeschlagen, versuche erneut...`, "error", 2000);
-      await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
-      return sendMessageWithRetry(html, retries + 1);
-    } else {
-      throw error;
-    }
-  }
-}
-
-/* ==================== COMPOSER SUBMIT ==================== */
-document.getElementById("composer").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (isLoading) return;
-  const html = editor.innerHTML.trim();
-  if (!html) { toast("Bitte geben Sie eine Nachricht ein", "error"); return; }
-  if (!canSendMessage()) { toast("Konversation noch nicht geladen. Bitte warten...", "error"); return; }
-
-  // HTML bereinigen
-  const sanitizedHtml = sanitizeHTML(html);
-  if (!sanitizedHtml.trim()) { toast("Ungültige Nachricht", "error"); return; }
-
-  isLoading = true; updateUI();
-  const optimisticMsg = { id: Date.now(), content: sanitizedHtml, created_at: Date.now(), message_type: "outgoing" };
-  renderMsg(optimisticMsg);
-  editor.innerHTML = ""; templateSelect.value = "";
-  try {
-    await sendMessageWithRetry(sanitizedHtml);
-    toast("Nachricht erfolgreich gesendet", "success");
-  } catch (error) {
-    console.error("Endgültiger Fehler beim Senden:", error);
-    toast(`Senden fehlgeschlagen: ${error.message}`, "error", 5000);
-    renderedIds.delete(optimisticMsg.id);
-  } finally { isLoading = false; updateUI(); }
-});
-
-/* ===================== SHORTCUTS ===================== */
-document.addEventListener("keydown",e=>{
-  if(e.ctrlKey && e.key.toLowerCase()==="r"){ window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*"); toast("Aktualisierung angefordert", "info"); e.preventDefault(); }
-  if(e.ctrlKey && e.key==="Enter" && !e.shiftKey){ document.getElementById("composer").dispatchEvent(new Event("submit")); e.preventDefault(); }
-});
-
-/* ===================== INITIALIZATION ===================== */
+emojiBtn.addEventListener('click',e=>{pickerVisible=!pickerVisible;emojiPicker.style.display=pickerVisible?'grid':'none';e.stopPropagation();});
+emojiPicker.addEventListener('click',e=>{if(e.target.tagName==='SPAN'){document.execCommand('insertText',false,e.target.textContent);pickerVisible=false;emojiPicker.style.display='none';editor.focus();}});
+document.addEventListener('click',e=>{if(pickerVisible&&!emojiPicker.contains(e.target)&&e.target!==emojiBtn){pickerVisible=false;emojiPicker.style.display='none';}});
+/* === SEND === */
+const buildHeaders=()=>{const h={'Content-Type':'application/json'};if(!CONFIG.USE_SAME_ORIGIN)h.api_access_token=CONFIG.API_INBOX_TOKEN;return h;};
+const buildEndpoint=()=>CONFIG.USE_SAME_ORIGIN?`${CONFIG.CHATWOOT_BASE}/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`:`${CONFIG.CHATWOOT_BASE}/public/api/v1/inboxes/${CONFIG.API_INBOX_IDENTIFIER}/contacts/${contactIdentifier}/conversations/${conversationId}/messages`;
+async function sendWithRetry(html,retry=0){try{const res=await fetch(buildEndpoint(),{method:'POST',headers:buildHeaders(),body:JSON.stringify({content:html,message_type:'outgoing',content_type:'text',private:false})});if(!res.ok)throw new Error(`HTTP ${res.status}`);debugLog('Message sent');}catch(err){if(retry<CONFIG.MAX_RETRIES){toast('Retry…','error');await new Promise(r=>setTimeout(r,CONFIG.RETRY_DELAY));return sendWithRetry(html,retry+1);}throw err;}}
+qs('composer').addEventListener('submit',async e=>{e.preventDefault(); if(isLoading)return; const html=editor.innerHTML.trim(); if(!html)return toast('Bitte Nachricht eingeben','error'); if(!canSendMessage())return toast('Konversation nicht geladen','error'); const clean=sanitizeHTML(html); if(!clean.trim())return toast('Ungültige Nachricht','error'); isLoading=true;updateUI(); const optimistic={id:Date.now(),content:clean,created_at:Date.now(),message_type:1}; renderMsg(optimistic); editor.innerHTML=''; try{await sendWithRetry(clean);toast('Gesendet','success');}catch(err){toast(err.message,'error');renderedIds.delete(optimistic.id);}finally{isLoading=false;updateUI();}});
+/* === SHORTCUTS === */
+document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='r'){window.parent.postMessage('chatwoot-dashboard-app:fetch-info','*');e.preventDefault();} if(e.ctrlKey&&e.key==='Enter'&&!e.shiftKey){qs('composer').dispatchEvent(new Event('submit'));e.preventDefault();}});
+/* === INIT & FALLBACK === */
 updateUI();
-setTimeout(() => {
-  if (!isReady) {
-    console.warn("Keine Chatwoot-Daten nach 10 Sekunden erhalten, lade Debug-Fallback.");
-    const dummyEvent = { event: "appContext", data: { conversation: { id: 9999, account_id: 1111, inbox_id: 2222, messages: [ { id: 1, content: "<strong>Debug</strong>: Willkommen!", created_at: new Date().toISOString(), message_type: "incoming" }, { id: 2, content: "Dies ist eine Dummy-Antwort.", created_at: new Date().toISOString(), message_type: "incoming" } ] }, contact: { id: 5555, identifier: "debug-user", email: "debug@example.com" } } };
-    window.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(dummyEvent) }));
-    toast("Debug-Fallback geladen", "info");
-  }
-}, 10000);
-
-window.addEventListener("beforeunload", () => { if (intervalId) clearInterval(intervalId); });
+setTimeout(()=>{if(!isReady){window.dispatchEvent(new MessageEvent('message',{data:JSON.stringify(fallbackEvent)}));toast('Debug-Fallback geladen','info');}},10000);
+/* Fallback event injected from original file */
+fallbackEvent={"event":"appContext","data":{"conversation":{"meta":{"sender":{"additional_attributes":{},"availability_status":"offline","email":null,"id":133,"name":"","phone_number":"","blocked":false,"identifier":null,"thumbnail":"","custom_attributes":{},"last_activity_at":1753710954,"created_at":1753710905},"channel":"Channel::Api","assignee":{"id":1,"account_id":1,"availability_status":"online","auto_offline":true,"confirmed":true,"email":"clients@freiheitmedia.com","available_name":"Freiheit Media","name":"Freiheit Media","role":"administrator","thumbnail":"","custom_role_id":null},"hmac_verified":false},"id":87,"messages":[{"id":822,"content":"Hi! Ich hab ne Frage!","inbox_id":13,"conversation_id":87,"message_type":0,"content_type":"text","status":"sent","content_attributes":{},"created_at":1753710905,"private":false,"source_id":null,"sender":{"additional_attributes":{},"custom_attributes":{},"email":null,"id":133,"identifier":null,"name":"","phone_number":"","thumbnail":"","blocked":false,"type":"contact"}},{"id":823,"content":"Hi! Ich hab ne Frage!","inbox_id":13,"conversation_id":87,"message_type":0,"content_type":"text","status":"sent","content_attributes":{},"created_at":1753710954,"private":false,"source_id":null,"sender":{"additional_attributes":{},"custom_attributes":{},"email":null,"id":133,"identifier":null,"name":"","phone_number":"","thumbnail":"","blocked":false,"type":"contact"}},{"id":826,"content":"test","inbox_id":13,"conversation_id":87,"message_type":1,"content_type":"text","status":"sent","content_attributes":{},"created_at":1753718200,"private":false,"source_id":null,"sender":{"id":1,"name":"Freiheit Media","available_name":"Freiheit Media","avatar_url":"","type":"user","availability_status":"online","thumbnail":""}},{"id":831,"content":"test\n","account_id":1,"inbox_id":13,"conversation_id":87,"message_type":1,"created_at":1753727649,"updated_at":"2025-07-28T18:34:09.855Z","private":false,"status":"sent","source_id":null,"content_type":"text","content_attributes":{},"sender_type":"User","sender_id":1,"external_source_ids":{},"additional_attributes":{},"processed_message_content":"test\n","sentiment":{},"conversation":{"assignee_id":1,"unread_count":0,"last_activity_at":1753727649,"contact_inbox":{"source_id":"d98eb842-3a89-494f-9bbb-fca2387a0def"}},"sender":{"id":1,"name":"Freiheit Media","available_name":"Freiheit Media","avatar_url":"","type":"user","availability_status":"online","thumbnail":""}}],"account_id":1,"uuid":"dd401c8f-0af9-474c-82c6-1080fa897c06","additional_attributes":{},"agent_last_seen_at":1753771661,"assignee_last_seen_at":1753771637,"can_reply":true,"contact_last_seen_at":0,"custom_attributes":{"fb_post_url":"https://www.facebook.com/permalink.php?story_fbid=pfbid08Quas66aE7UgfMogbGpTUKCTjXDpog2weyRgr8iyrU9U9F9dRV8hviu9WQTi1Se4l&id=61572421506861"},"inbox_id":13,"labels":[],"muted":false,"snoozed_until":null,"status":"open","created_at":1753710905,"updated_at":1753727649.863434,"timestamp":1753727649,"first_reply_created_at":1753718200,"unread_count":0,"last_non_activity_message":{"id":831,"content":"test\n","account_id":1,"inbox_id":13,"conversation_id":87,"message_type":1,"created_at":1753727649,"updated_at":"2025-07-28T18:34:09.855Z","private":false,"status":"sent","source_id":null,"content_type":"text","content_attributes":{},"sender_type":"User","sender_id":1,"external_source_ids":{},"additional_attributes":{},"processed_message_content":"test\n","sentiment":{},"conversation":{"assignee_id":1,"unread_count":0,"last_activity_at":1753727649,"contact_inbox":{"source_id":"d98eb842-3a89-494f-9bbb-fca2387a0def"}},"sender":{"id":1,"name":"Freiheit Media","available_name":"Freiheit Media","avatar_url":"","type":"user","availability_status":"online","thumbnail":""}},"last_activity_at":1753727649,"priority":null,"waiting_since":0,"sla_policy_id":null,"allMessagesLoaded":false,"dataFetched":true},"contact":{"additional_attributes":{},"availability_status":null,"email":null,"id":133,"name":"","phone_number":"","blocked":false,"identifier":null,"thumbnail":"","custom_attributes":{},"last_activity_at":1753710954,"created_at":1753710905,"contact_inboxes":[{"inbox":{"id":12,"avatar_url":"","channel_id":6,"name":"FM Dev Facebook Comments","channel_type":"Channel::Api","provider":null},"source_id":"47b5ff3b-52bd-42b2-b809-26177f1d7cf2"},{"inbox":{"id":13,"avatar_url":"","channel_id":7,"name":"Phil Test","channel_type":"Channel::Api","provider":null},"source_id":"d98eb842-3a89-494f-9bbb-fca2387a0def"},{"inbox":{"id":1,"avatar_url":"","channel_id":1,"name":"Diamond Painting | Chat","channel_type":"Channel::Api","provider":null},"source_id":"2350c591-d142-47ba-8f4e-74406a0164c4"}]},"currentAgent":{"id":1,"name":"Freiheit Media","email":"clients@freiheitmedia.com"}}};
+window.addEventListener('beforeunload',()=>{if(intervalId)clearInterval(intervalId);});
 </script>
 </body>
 </html>
